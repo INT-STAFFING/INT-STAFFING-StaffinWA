@@ -15,19 +15,21 @@
   - La cella mostra il colore corretto rispetto a `maxStaffingPercentage`.
   - Le viste Giorno/Settimana/Mese aggregano coerentemente.
 
-### A2 — Individuare e risolvere una sovra-allocazione ⚠️
+### A2 — Individuare e risolvere una sovra-allocazione ✅ *(risolto)*
 - **Come** Staffing Manager **voglio** vedere quando una persona supera il
   proprio massimo **così da** ribilanciare prima che diventi un problema.
 - **Accettazione:**
   - ✅ La cella totale diventa rossa se `totale > maxStaffingPercentage`.
-  - ⚠️ **Gap:** il sistema non spiega *quali* progetti causano lo sforamento né
-    propone una risoluzione; nessun avviso/conferma quando salvo una sovra-allocazione.
+  - ✅ La cella è **cliccabile** e apre la **diagnosi del carico**: composizione
+    per progetto, totale vs massimo, sforamento evidenziato, con **fix inline**
+    delle percentuali (`LoadDiagnosisModal`).
 
-### A3 — Annullare un'assegnazione massiva errata ❌
+### A3 — Annullare un'assegnazione massiva errata ✅ *(risolto)*
 - **Come** Staffing Manager **voglio** annullare l'ultima operazione massiva
   **così da** recuperare da un errore senza ricostruire a mano.
-- **Accettazione (target):** un "Annulla" sull'ultima azione bulk, o anteprima
-  prima dell'applicazione. **Stato:** ❌ non presente.
+- **Accettazione:** dopo un'assegnazione massiva compare un banner **"Annulla"**
+  che ripristina i valori precedenti (snapshot dei giorni lavorativi, incluse le
+  celle svuotate), tramite `applyAllocationUpdates`. Snapshot coperto da test.
 
 ### A4 — Capire perché una cella non è editabile ⚠️
 - **Come** utente **voglio** capire perché una cella è disabilitata (assenza,

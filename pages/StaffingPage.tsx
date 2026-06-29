@@ -10,7 +10,7 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useHRContext } from '../context/HRContext';
-import { Resource, Assignment, LeaveRequest, LeaveType, Project, Client, Role } from '../types';
+import { Resource, Assignment, LeaveRequest, LeaveType, Project, Client, Role, AllocationUpdate } from '../types';
 import {
   getCalendarDays,
   formatDate,
@@ -20,6 +20,9 @@ import {
   formatDateFull,
   formatDateSynthetic
 } from '../utils/dateUtils';
+import { buildAllocationSnapshot } from '../utils/allocationUtils';
+import { useToast } from '../context/ToastContext';
+import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
@@ -249,10 +252,12 @@ interface DailyTotalCellProps {
   resourceAssignments: Assignment[];
   activeLeave?: LeaveRequest;
   leaveType?: LeaveType;
+  /** R-A2: callback per aprire la diagnosi del carico (composizione per progetto). */
+  onDiagnose?: () => void;
 }
 
 const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
-  ({ resource, date, isNonWorkingDay, resourceAssignments, activeLeave, leaveType }) => {
+  ({ resource, date, isNonWorkingDay, resourceAssignments, activeLeave, leaveType, onDiagnose }) => {
     const { allocations } = useAllocationsContext();
 
     const total = useMemo(() => {
@@ -315,18 +320,112 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
       );
     }
 
-    return (
-      <td
-        className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
-      >
+    const isOverloaded = capacityUsed > maxPercentage;
+    const canDiagnose = Boolean(onDiagnose) && total > 0;
+    const content = (
+      <>
         {activeLeave && activeLeave.isHalfDay && (
             <span className="material-symbols-outlined text-xs mr-1 align-middle opacity-50">schedule</span>
         )}
         {total > 0 ? `${total}%` : (activeLeave && activeLeave.isHalfDay ? '1/2' : '-')}
+      </>
+    );
+
+    return (
+      <td
+        className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      >
+        {canDiagnose ? (
+          <button
+            type="button"
+            onClick={onDiagnose}
+            aria-label={`${isOverloaded ? 'Sovraccarico' : 'Carico'} ${total}% — apri la composizione del carico`}
+            className="w-full h-full inline-flex items-center justify-center gap-1 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+          >
+            {content}
+            {isOverloaded && <span className="material-symbols-outlined text-xs" aria-hidden="true">info</span>}
+          </button>
+        ) : content}
       </td>
     );
   }
 );
+
+/**
+ * R-A2 — Modale di diagnosi del carico giornaliero di una risorsa.
+ * Trasforma il segnale "rosso" in una spiegazione azionabile: mostra la
+ * composizione per progetto del carico in un dato giorno, l'eventuale sforamento
+ * rispetto al massimo, e consente di correggere le percentuali inline.
+ */
+const LoadDiagnosisModal: React.FC<{
+  resource: Resource;
+  date: string;
+  assignments: Assignment[];
+  projectsById: Map<string, Project>;
+  clientsById: Map<string, Client>;
+  onClose: () => void;
+}> = ({ resource, date, assignments, projectsById, clientsById, onClose }) => {
+  const { allocations, updateAllocation } = useAllocationsContext();
+  const max = resource.maxStaffingPercentage ?? 100;
+  const rows = useMemo(() => assignments
+    .map(a => ({ a, pct: allocations[a.id!]?.[date] ?? 0, project: projectsById.get(a.projectId) }))
+    .sort((x, y) => y.pct - x.pct), [assignments, allocations, date, projectsById]);
+  const total = rows.reduce((s, r) => s + r.pct, 0);
+  const overflow = total - max;
+
+  return (
+    <Modal isOpen onClose={onClose} title="Composizione del carico">
+      <div className="space-y-4">
+        <div>
+          <p className="font-bold text-on-surface">{resource.name}</p>
+          <p className="text-sm text-on-surface-variant">{formatDateFull(date)}</p>
+        </div>
+        <div className="flex items-center gap-4 text-sm bg-surface-container-low rounded-2xl p-3">
+          <span>Massimo: <strong>{max}%</strong></span>
+          <span>Totale: <strong className={overflow > 0 ? 'text-error' : ''}>{total}%</strong></span>
+          {overflow > 0 && (
+            <span className="ml-auto px-2 py-1 rounded-full bg-error-container text-on-error-container font-bold text-xs">
+              +{overflow}% oltre il massimo
+            </span>
+          )}
+        </div>
+        <div className="space-y-2">
+          {rows.map(({ a, pct, project }) => {
+            const client = project && project.clientId ? clientsById.get(project.clientId) : undefined;
+            return (
+              <div key={a.id} className="flex items-center gap-3 border border-outline-variant rounded-xl px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-on-surface truncate">{project?.name || 'Progetto'}</p>
+                  {client && <p className="text-xs text-on-surface-variant truncate">{client.name}</p>}
+                </div>
+                <label className="sr-only" htmlFor={`diag-${a.id}`}>Allocazione su {project?.name}</label>
+                <select
+                  id={`diag-${a.id}`}
+                  value={pct}
+                  onChange={(e) => updateAllocation(a.id!, date, Number(e.target.value))}
+                  aria-label={`Allocazione di ${resource.name} su ${project?.name || 'progetto'} il ${formatDateFull(date)}`}
+                  className={`form-select w-24 text-sm ${pct > 0 ? 'font-bold' : ''}`}
+                >
+                  {Array.from({ length: 21 }, (_, i) => i * 5).map(v => (
+                    <option key={v} value={v}>{v}%</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+        {overflow > 0 && (
+          <p className="text-xs text-on-surface-variant">
+            Suggerimento: riduci una o più allocazioni per riportare il totale a {max}% o meno.
+          </p>
+        )}
+        <div className="flex justify-end pt-2">
+          <button type="button" onClick={onClose} className="px-6 py-2 rounded-full bg-primary text-on-primary font-bold hover:opacity-90">Chiudi</button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 /**
  * Cella totale aggregata (settimana/mese) per risorsa.
@@ -573,7 +672,8 @@ export const StaffingPage: React.FC = () => {
   const { companyCalendar } = useLookupContext();
   const { leaveRequests, leaveTypes } = useHRContext();
   const { isActionLoading } = useAppState();
-  const { allocations, bulkUpdateAllocations } = useAllocationsContext();
+  const { allocations, bulkUpdateAllocations, updateAllocation, applyAllocationUpdates } = useAllocationsContext();
+  const { addToast } = useToast();
 
   // Modali Desktop
   const [isBulkModalOpen, setBulkModalOpen] = useState(false);
@@ -581,6 +681,10 @@ export const StaffingPage: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
   const [bulkFormData, setBulkFormData] = useState<BulkAssignmentFormValues>({ startDate: '', endDate: '', percentage: 50 });
+  // R-A3: stato per l'annullamento dell'ultima assegnazione massiva (snapshot dei valori precedenti).
+  const [lastBulkUndo, setLastBulkUndo] = useState<{ updates: AllocationUpdate[]; count: number; label: string } | null>(null);
+  // R-A2: cella selezionata per la diagnosi del carico ("perché è in rosso").
+  const [diagnoseCell, setDiagnoseCell] = useState<{ resource: Resource; date: string; assignments: Assignment[] } | null>(null);
   const [newAssignmentData, setNewAssignmentData] = useState<AssignmentFormValues>({ resourceId: '', projectIds: [] });
 
   // Filters State (Input)
@@ -698,10 +802,26 @@ export const StaffingPage: React.FC = () => {
 
   const handleBulkSubmit = (values: BulkAssignmentFormValues) => {
       if (!selectedAssignment) return;
-      bulkUpdateAllocations(selectedAssignment.id!, values.startDate, values.endDate, values.percentage);
+      const assignmentId = selectedAssignment.id!;
+      // R-A3: cattura i valori precedenti dei giorni lavorativi nel range, così da
+      // poter annullare l'operazione (ripristino preciso, anche delle celle svuotate).
+      const previous = buildAllocationSnapshot(assignmentId, values.startDate, values.endDate, allocations);
+      bulkUpdateAllocations(assignmentId, values.startDate, values.endDate, values.percentage);
+      if (previous.length > 0) {
+          const proj = getProjectById(selectedAssignment.projectId);
+          setLastBulkUndo({ updates: previous, count: previous.length, label: proj?.name || 'assegnazione' });
+      }
       setBulkFormData(values);
       setBulkModalOpen(false);
   };
+
+  // R-A3: ripristina i valori precedenti all'ultima assegnazione massiva.
+  const handleUndoBulk = useCallback(async () => {
+      if (!lastBulkUndo) return;
+      await applyAllocationUpdates(lastBulkUndo.updates);
+      addToast('Assegnazione massiva annullata.', 'success');
+      setLastBulkUndo(null);
+  }, [lastBulkUndo, applyAllocationUpdates, addToast]);
   const handleNewAssignmentSubmit = (values: AssignmentFormValues) => {
       if (values.resourceId && values.projectIds.length > 0) {
           const assignmentsToCreate = values.projectIds.map(projectId => ({ resourceId: values.resourceId, projectId }));
@@ -1067,14 +1187,15 @@ export const StaffingPage: React.FC = () => {
                                                 const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso));
                                                 
                                                 return (
-                                                    <DailyTotalCell 
-                                                        key={index} 
-                                                        resource={resource} 
-                                                        date={col.dateIso!} 
-                                                        isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday} 
-                                                        resourceAssignments={resourceAssignments} 
+                                                    <DailyTotalCell
+                                                        key={index}
+                                                        resource={resource}
+                                                        date={col.dateIso!}
+                                                        isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday}
+                                                        resourceAssignments={resourceAssignments}
                                                         activeLeave={leaveInfo?.request}
                                                         leaveType={leaveInfo?.type}
+                                                        onDiagnose={() => setDiagnoseCell({ resource, date: col.dateIso!, assignments: resourceAssignments })}
                                                     />
                                                 );
                                             }
@@ -1162,6 +1283,28 @@ export const StaffingPage: React.FC = () => {
           schema={assignmentSchema}
           submitLabel="Aggiungi"
       />
+
+      {/* R-A2: diagnosi del carico ("perché è in rosso") */}
+      {diagnoseCell && (
+          <LoadDiagnosisModal
+              resource={diagnoseCell.resource}
+              date={diagnoseCell.date}
+              assignments={diagnoseCell.assignments}
+              projectsById={projectsById}
+              clientsById={clientsById}
+              onClose={() => setDiagnoseCell(null)}
+          />
+      )}
+
+      {/* R-A3: annullamento dell'ultima assegnazione massiva */}
+      {lastBulkUndo && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-2xl shadow-lg animate-fade-in">
+              <span className="material-symbols-outlined" aria-hidden="true">history</span>
+              <span className="text-sm">Assegnazione massiva su <strong>{lastBulkUndo.label}</strong> applicata a {lastBulkUndo.count} giornate.</span>
+              <button type="button" onClick={handleUndoBulk} className="font-bold text-sm underline hover:no-underline">Annulla</button>
+              <button type="button" onClick={() => setLastBulkUndo(null)} aria-label="Chiudi avviso" className="ml-1 opacity-70 hover:opacity-100"><span className="material-symbols-outlined text-base" aria-hidden="true">close</span></button>
+          </div>
+      )}
     </div>
   );
 };

@@ -104,8 +104,8 @@ una **azione di sviluppo** immediata.
 
 | ID | Criticità | Domanda di ricerca | Azione di sviluppo |
 |---|---|---|---|
-| R-A2 | Sovraccarico non spiegato (G1/Q5) | I manager vogliono diagnosi o solo bilanciamento 1-click? | Popover "perché è rosso" + breakdown (F3) |
-| R-A3 | Nessun undo bulk (G1/Q3) | Preferiscono anteprima pre-apply o undo post-apply? | Conferma con riepilogo celle impattate prima dell'apply |
+| R-A2 | Sovraccarico non spiegato (G1/Q5) | I manager vogliono diagnosi o solo bilanciamento 1-click? | ✅ Cella cliccabile → modale "Composizione del carico" con breakdown per progetto + fix inline |
+| R-A3 | Nessun undo bulk (G1/Q3) | Preferiscono anteprima pre-apply o undo post-apply? | ✅ Banner "Annulla" post-apply che ripristina lo snapshot precedente (+test) |
 | R-B2 | Capacità senza assenze (G4/Q2) | Quanto incide sulle decisioni di hiring l'errore di capacità? | ✅ **già risolto** (verificato): il Forecasting sottrae i `leaves` APPROVED dai G/U |
 | R-B4 | Divergenza KPI (G2/Q1) | Quali numeri gli utenti confrontano tra pagine? | ✅ Forecasting ora usa le util condivise (`buildHolidaySet`/`getWorkingDaysBetweenWithSet`); equivalenza provata da test (corrette 2 divergenze latenti) |
 | R-C3 | No conversione candidato→risorsa (G3/Q6) | Quanto tempo si perde nel doppio inserimento? | ✅ "Crea risorsa da candidato" pre-compila il form Risorsa dal colloquio |

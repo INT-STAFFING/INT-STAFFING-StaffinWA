@@ -654,10 +654,18 @@ export interface EntitiesContextType extends EntitiesState, EntitiesActions {
     isActionLoading: (action: string) => boolean;
 }
 
+export interface AllocationUpdate {
+    assignmentId: string;
+    date: string;
+    percentage: number;
+}
+
 export interface AllocationsContextType {
     allocations: Allocation;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
     bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
+    /** Applica un insieme arbitrario di aggiornamenti puntuali (usato per il ripristino/undo). */
+    applyAllocationUpdates: (updates: AllocationUpdate[]) => Promise<void>;
 }
 
 export interface SimulationResource extends Resource {

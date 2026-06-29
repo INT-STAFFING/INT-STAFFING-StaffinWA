@@ -31,6 +31,11 @@
 - [x] ✅ R-F1 — `aria-label` su **tutti i controlli icona-only** dell'app (~26 bottoni in 14 file: navigazione, salva/annulla inline, zoom, import/export, filtri…) + input accessibile in `ConfirmationModal`. I bottoni con testo visibile (anche in ternary) restano correttamente senza `aria-label` (già accessibili).
 - [ ] ⬜ F6 — Navigazione adattiva/ordinata per rilevanza per ruolo — decisione di prodotto
 
+## 3-bis. Griglia di staffing (Giulia, P1)
+- [x] ✅ R-A2 — Diagnosi del carico: cella totale cliccabile → composizione per progetto + fix inline (`LoadDiagnosisModal`)
+- [x] ✅ R-A3 — Undo dell'assegnazione massiva: banner "Annulla" + ripristino snapshot (`applyAllocationUpdates`, `buildAllocationSnapshot` + test)
+- [ ] ⬜ Accessibilità griglia: focus visibile uniforme + navigazione tastiera completa sulla griglia virtualizzata
+
 ## 4. Edge cases (Asse 3) — da coprire con validazione/test
 - [ ] ⬜ E-01 Dimissione a metà allocazione futura
 - [ ] ⬜ E-02 Assenza approvata sovrapposta ad allocazione
@@ -82,5 +87,6 @@ Un incremento è promuovibile quando:
   - R-C3 ✅ "Crea risorsa da candidato" (prefill form Risorsa via router state).
   - R-C4 ✅ "Chiudi richiesta collegata" dal colloquio assunto.
 - **Sviluppo iterazione 4**: R-F1 ✅ rollout completo degli `aria-label` sui controlli icona-only (~26 bottoni in 14 file).
-- **Backlog tracciato (feature / decisioni di prodotto)**: R-A2/A3 (undo + diagnosi sovraccarico nella griglia), F6 (navigazione adattiva), edge case E-01/03/04/06/07/08/09/12.
+- **Sviluppo iterazione 5**: R-A2 ✅ diagnosi del carico (modale composizione + fix inline) · R-A3 ✅ undo dell'assegnazione massiva (banner + snapshot, +test). Build di produzione verificata.
+- **Backlog tracciato (feature / decisioni di prodotto)**: F6 (navigazione adattiva), accessibilità tastiera sulla griglia, edge case E-01/03/04/06/07/08/09/12.
 - **Gate**: typecheck ✅ + test ✅ (448) + lint ✅ — eseguiti prima del push.
