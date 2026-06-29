@@ -28,7 +28,7 @@
 ## 3. Utente & self-service (Asse 2, persona P4)
 - [x] ✅ R-D3 — **Empty state distinto** (dataset vuoto vs filtro senza risultati) in `DataTable` + test
 - [x] ✅ R-D2 — **Approvatore visibile** + badge stato in italiano nelle richieste di assenza (`LeavePage`)
-- [~] ⚠️ R-F1 — `aria-label` sui controlli icona-only **sulla pagina self-service chiave** (`LeavePage`) + input accessibile in `ConfirmationModal`; rollout sulle restanti pagine resta backlog
+- [x] ✅ R-F1 — `aria-label` su **tutti i controlli icona-only** dell'app (~26 bottoni in 14 file: navigazione, salva/annulla inline, zoom, import/export, filtri…) + input accessibile in `ConfirmationModal`. I bottoni con testo visibile (anche in ternary) restano correttamente senza `aria-label` (già accessibili).
 - [ ] ⬜ F6 — Navigazione adattiva/ordinata per rilevanza per ruolo — decisione di prodotto
 
 ## 4. Edge cases (Asse 3) — da coprire con validazione/test
@@ -81,5 +81,6 @@ Un incremento è promuovibile quando:
   - R-B4 ✅ Forecasting unificato sulle util condivise di `dateUtils` + test di equivalenza (corrette 2 divergenze latenti).
   - R-C3 ✅ "Crea risorsa da candidato" (prefill form Risorsa via router state).
   - R-C4 ✅ "Chiudi richiesta collegata" dal colloquio assunto.
+- **Sviluppo iterazione 4**: R-F1 ✅ rollout completo degli `aria-label` sui controlli icona-only (~26 bottoni in 14 file).
 - **Backlog tracciato (feature / decisioni di prodotto)**: R-A2/A3 (undo + diagnosi sovraccarico nella griglia), F6 (navigazione adattiva), edge case E-01/03/04/06/07/08/09/12.
 - **Gate**: typecheck ✅ + test ✅ (448) + lint ✅ — eseguiti prima del push.

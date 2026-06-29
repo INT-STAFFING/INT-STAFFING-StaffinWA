@@ -114,7 +114,7 @@ una **azione di sviluppo** immediata.
 | R-D3 | Empty state ambiguo (E-10/Q4) | Le liste vuote generano ticket di supporto? | ✅ `DataTable` ora distingue "dataset vuoto" da "filtro senza risultati" (+test) |
 | R-E3 | Operazioni distruttive (C1/Q7) | Serve davvero `TRUNCATE` in prod? A chi? | ✅ "digita per confermare" (`ConfirmationModal.confirmPhrase`) sullo svuotamento + test |
 | R-E4 | Effetto cambio permessi (E-06/Q8) | Gli admin sanno che serve un nuovo login? | ✅ nota "effetto al prossimo accesso" in RBAC (già in Entity Visibility) |
-| R-F1 | Accessibilità (Q9) | Esistono utenti che navigano da tastiera/AT? | ⚠️ `aria-label` su `LeavePage` + input accessibile in `ConfirmationModal`; rollout completo backlog |
+| R-F1 | Accessibilità (Q9) | Esistono utenti che navigano da tastiera/AT? | ✅ `aria-label` su tutti i controlli icona-only dell'app (~26 bottoni/14 file) + input accessibile in `ConfirmationModal` |
 
 ### Intervento di sviluppo in questa iterazione
 Per chiudere il loop "proponi → sviluppa → ri-audita" su una criticità ad alto

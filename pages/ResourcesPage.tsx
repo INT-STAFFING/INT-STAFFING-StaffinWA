@@ -764,7 +764,7 @@ const ResourcesPage: React.FC = () => {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gestione Skills</label>
                                     <div className="flex gap-2 mb-3">
                                         <div className="flex-grow"><SearchableSelect name="tempSkillId" value={tempSelectedSkillId} onChange={(_, val) => setTempSelectedSkillId(val)} options={skillOptions.filter(s => !selectedSkillDetails.some(sd => sd.skillId === s.value))} placeholder="Aggiungi competenza..." /></div>
-                                        <button type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50"><span className="material-symbols-outlined">add</span></button>
+                                        <button aria-label="Aggiungi competenza" type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50"><span className="material-symbols-outlined">add</span></button>
                                     </div>
                                     <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                                         {selectedSkillDetails.map(detail => {

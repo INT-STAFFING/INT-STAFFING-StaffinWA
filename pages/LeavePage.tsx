@@ -591,9 +591,9 @@ const LeavePage: React.FC = () => {
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-bold capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
                             <div className="flex gap-1">
-                                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
+                                <button aria-label="Mese precedente" onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
                                 <button onClick={handleToday} className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-full border border-outline hover:bg-surface-container">Oggi</button>
-                                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_right</span></button>
+                                <button aria-label="Mese successivo" onClick={handleNextMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_right</span></button>
                             </div>
                         </div>
                     </div>

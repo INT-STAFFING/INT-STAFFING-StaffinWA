@@ -239,14 +239,14 @@ export const AuditPillar: React.FC = () => {
                         <button
                             onClick={fetchLogs}
                             className="flex-1 bg-primary text-on-primary py-2 rounded-lg font-bold shadow-sm hover:opacity-90 transition-opacity flex justify-center items-center"
-                            title="Applica Filtri"
+                            aria-label="Applica Filtri" title="Applica Filtri"
                         >
                             <span className="material-symbols-outlined text-lg">search</span>
                         </button>
                         <button
                             onClick={handleReset}
                             className="px-3 bg-surface-container-high text-on-surface py-2 rounded-lg font-bold hover:bg-surface-container-highest transition-colors"
-                            title="Reset Filtri"
+                            aria-label="Reset Filtri" title="Reset Filtri"
                         >
                             <span className="material-symbols-outlined text-lg">filter_alt_off</span>
                         </button>

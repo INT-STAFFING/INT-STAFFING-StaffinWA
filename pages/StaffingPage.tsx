@@ -429,7 +429,7 @@ const MobileAssignmentEditor: React.FC<{
       <div className="fixed inset-0 z-50 bg-background flex flex-col animate-slide-up">
           <div className="flex items-center justify-between p-4 border-b border-outline-variant bg-surface">
               <h3 className="text-lg font-bold truncate pr-4">{projectName}</h3>
-              <button onClick={onClose} className="p-2 rounded-full bg-surface-container text-on-surface">
+              <button aria-label="Chiudi" onClick={onClose} className="p-2 rounded-full bg-surface-container text-on-surface">
                   <span className="material-symbols-outlined">close</span>
               </button>
           </div>

@@ -124,9 +124,12 @@
 
 ## Epica F — Qualità trasversale (non-funzionali)  *(tutte le personas)*
 
-### F1 — Accessibilità da tastiera e screen reader ⚠️
+### F1 — Accessibilità da tastiera e screen reader ⚠️ *(parzialmente risolto)*
 - **Accettazione (target):** focus visibile, label ARIA su controlli icona-only,
-  navigazione tastiera sulla griglia. **Stato:** ⚠️ uso di `aria-*` limitato.
+  navigazione tastiera sulla griglia.
+- **Stato:** ✅ **label ARIA su tutti i controlli icona-only** (~26 bottoni/14 file)
+  + input accessibile in `ConfirmationModal`. ⬜ Restano: focus visibile uniforme
+  e navigazione tastiera completa sulla griglia di staffing virtualizzata.
 
 ### F2 — Feedback coerente su errori e azioni asincrone ✅/⚠️
 - **Accettazione:** toast e spinner presenti; ⚠️ messaggi di errore di rete non sempre azionabili.

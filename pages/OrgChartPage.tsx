@@ -468,11 +468,11 @@ const OrgChartPage: React.FC = () => {
 
                 <div className="h-8 w-px bg-outline-variant hidden sm:block" />
 
-                <button onClick={expandAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-primary hover:bg-primary/10 transition-colors flex items-center gap-1">
+                <button aria-label="Espandi tutto" onClick={expandAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-primary hover:bg-primary/10 transition-colors flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">unfold_more</span>
                     <span className="hidden sm:inline">Espandi tutto</span>
                 </button>
-                <button onClick={collapseAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-on-surface-variant hover:bg-surface-container-high transition-colors flex items-center gap-1">
+                <button aria-label="Comprimi tutto" onClick={collapseAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-on-surface-variant hover:bg-surface-container-high transition-colors flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">unfold_less</span>
                     <span className="hidden sm:inline">Comprimi</span>
                 </button>
@@ -480,13 +480,13 @@ const OrgChartPage: React.FC = () => {
                 <div className="h-8 w-px bg-outline-variant hidden sm:block" />
 
                 <div className="flex items-center gap-1">
-                    <button onClick={zoomOut} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" title="Riduci">
+                    <button onClick={zoomOut} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label="Riduci" title="Riduci">
                         <span className="material-symbols-outlined text-sm">remove</span>
                     </button>
                     <button onClick={zoomReset} className="px-2 py-1 rounded-lg text-xs font-bold text-on-surface-variant hover:bg-surface-container-high min-w-[40px] text-center" title="Reset zoom">
                         {zoom}%
                     </button>
-                    <button onClick={zoomIn} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" title="Ingrandisci">
+                    <button onClick={zoomIn} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label="Ingrandisci" title="Ingrandisci">
                         <span className="material-symbols-outlined text-sm">add</span>
                     </button>
                 </div>
