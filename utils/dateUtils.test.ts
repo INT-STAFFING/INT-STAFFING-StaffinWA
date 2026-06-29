@@ -19,6 +19,9 @@ import {
     formatDateFull,
     formatDateSynthetic,
     formatDate,
+    buildHolidaySet,
+    isHolidayInSet,
+    getWorkingDaysBetweenWithSet,
 } from './dateUtils';
 import type { CalendarEvent, LeaveRequest, LeaveType } from '../types';
 
@@ -770,5 +773,66 @@ describe('formatDate (suite B)', () => {
         const day = formatDate(d, 'day');
         expect(typeof day).toBe('string');
         expect(day.length).toBeGreaterThan(0);
+    });
+});
+
+// ===========================================================================
+// SUITE EQUIVALENZA — varianti set-based (R-B4: unificazione Forecasting)
+// Garantisce che le funzioni O(1) precompilate diano lo STESSO risultato delle
+// funzioni "calendar-based" usate in Dashboard/Report, evitando KPI divergenti.
+// ===========================================================================
+
+describe('buildHolidaySet / isHolidayInSet / getWorkingDaysBetweenWithSet', () => {
+    const calendar: CalendarEvent[] = [
+        { id: 'h1', name: 'Natale', date: '2024-12-25', type: 'NATIONAL_HOLIDAY', location: null },
+        { id: 'h2', name: 'Chiusura', date: '2024-12-24', type: 'COMPANY_CLOSURE', location: null },
+        { id: 'h3', name: 'Santo Patrono Milano', date: '2024-12-07', type: 'LOCAL_HOLIDAY', location: 'Milano' },
+        { id: 'h4', name: 'Locale senza sede', date: '2024-12-10', type: 'LOCAL_HOLIDAY', location: null },
+    ];
+
+    it('isHolidayInSet coincide con isHoliday su tutte le date/sedi rilevanti', () => {
+        const set = buildHolidaySet(calendar);
+        const locations: (string | null)[] = [null, 'Milano', 'Roma'];
+        // Copre tutto dicembre 2024 incluse le festività e il caso "locale senza sede"
+        for (let day = 1; day <= 31; day++) {
+            const date = new Date(Date.UTC(2024, 11, day));
+            for (const loc of locations) {
+                expect(isHolidayInSet(date, loc, set)).toBe(isHoliday(date, loc, calendar));
+            }
+        }
+    });
+
+    it('getWorkingDaysBetweenWithSet coincide con getWorkingDaysBetween (più sedi/range)', () => {
+        const set = buildHolidaySet(calendar);
+        const ranges: [Date, Date][] = [
+            [new Date(Date.UTC(2024, 11, 1)), new Date(Date.UTC(2024, 11, 31))],
+            [new Date(Date.UTC(2024, 11, 23)), new Date(Date.UTC(2024, 11, 27))],
+            [new Date(Date.UTC(2024, 11, 7)), new Date(Date.UTC(2024, 11, 7))], // festa locale Milano
+            [new Date(Date.UTC(2025, 0, 1)), new Date(Date.UTC(2025, 0, 31))],   // mese senza festività in calendario
+        ];
+        for (const [start, end] of ranges) {
+            for (const loc of [null, 'Milano', 'Roma']) {
+                expect(getWorkingDaysBetweenWithSet(start, end, set, loc))
+                    .toBe(getWorkingDaysBetween(start, end, calendar, loc));
+            }
+        }
+    });
+
+    it('una festività locale a Milano riduce i G/U solo per la sede Milano', () => {
+        const set = buildHolidaySet(calendar);
+        // 2024-12-07 è sabato → non incide; usiamo una verifica diretta su isHolidayInSet
+        const localDay = new Date(Date.UTC(2024, 11, 7));
+        expect(isHolidayInSet(localDay, 'Milano', set)).toBe(true);
+        expect(isHolidayInSet(localDay, 'Roma', set)).toBe(false);
+        expect(isHolidayInSet(localDay, null, set)).toBe(false);
+    });
+
+    it('gestisce date evento in formato timestamp e date invalide', () => {
+        const calWithTs: CalendarEvent[] = [
+            { id: 'x', name: 'Festa', date: '2024-12-25T00:00:00.000Z', type: 'NATIONAL_HOLIDAY', location: null },
+        ];
+        const set = buildHolidaySet(calWithTs);
+        expect(isHolidayInSet(new Date(Date.UTC(2024, 11, 25)), null, set)).toBe(true);
+        expect(getWorkingDaysBetweenWithSet(new Date('invalid'), new Date('invalid'), set)).toBe(0);
     });
 });

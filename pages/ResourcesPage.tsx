@@ -11,7 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday, formatDateFull } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
 import ExportButton from '../components/ExportButton';
@@ -81,6 +81,7 @@ const ResourcesPage: React.FC = () => {
 
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         const filter = searchParams.get('filter');
@@ -99,6 +100,23 @@ const ResourcesPage: React.FC = () => {
             }
         }
     }, [searchParams, setSearchParams, resources, isModalOpen]);
+
+    // Handoff recruiting → staffing (R-C3): apre il form "nuova risorsa"
+    // pre-compilato con i dati di un candidato assunto, passati via router state.
+    // Non crea la risorsa in automatico: i campi obbligatori mancanti (email,
+    // sede, ecc.) restano da completare prima del salvataggio.
+    useEffect(() => {
+        const prefill = (location.state as { prefillResource?: Partial<Resource> } | null)?.prefillResource;
+        if (prefill && !isModalOpen) {
+            setEditingResource({ ...emptyResource, ...prefill });
+            setSelectedSkillDetails([]);
+            setTempSelectedSkillId('');
+            setIsModalOpen(true);
+            // Pulisce lo state per evitare la riapertura al re-render / back.
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Resource | null>(null);

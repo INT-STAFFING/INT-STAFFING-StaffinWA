@@ -66,14 +66,20 @@
 ### C2 — Gestire la pipeline colloqui collegata alla richiesta ✅
 - **Accettazione:** colloquio legato a una richiesta; feedback `Positivo/On Hold/Negativo`; card-filtro.
 
-### C3 — Convertire un candidato assunto in Risorsa staffabile ❌
+### C3 — Convertire un candidato assunto in Risorsa staffabile ✅ *(risolto)*
 - **Come** HR **voglio** che un candidato con "Data Ingresso" diventi una Risorsa
   anagrafica disponibile in Staffing **così da** non re-inserire i dati a mano.
-- **Accettazione (target):** azione "Crea risorsa da candidato" pre-compilata.
-  **Stato:** ❌ flusso non guidato (vedi domanda di ricerca R-C3).
+- **Accettazione:** dal colloquio con esito "SI (Assunto)" il pulsante **"Crea
+  risorsa da questo candidato"** apre la creazione Risorsa **pre-compilata**
+  (nome, ruolo, funzione, data ingresso→assunzione, note) via router state; i
+  campi obbligatori mancanti (email, sede) restano da completare prima del salvataggio.
 
-### C4 — Chiudere automaticamente la richiesta quando è coperta ⚠️
-- **Accettazione (target):** suggerimento/automatismo di chiusura richiesta al verificarsi dell'ingresso. **Stato:** ⚠️ manuale.
+### C4 — Chiudere la richiesta quando è coperta ✅ *(risolto)*
+- **Come** HR **voglio** chiudere la Richiesta Risorsa una volta coperta
+  dall'assunzione **così da** non lasciare richieste "orfane" aperte.
+- **Accettazione:** se il colloquio assunto è collegato a una richiesta ancora
+  `ATTIVA`, compare il pulsante **"Chiudi richiesta collegata"** che la porta a
+  `CHIUSA` (con optimistic locking via `version`).
 
 ## Epica D — Self-service Dipendente  *(Davide, P4)*
 

@@ -17,11 +17,12 @@
 ## 2. Coerenza (Asse 1)
 - [x] ✅ R-B2 — **Verificato già risolto**: il Forecasting filtra le assenze `APPROVED`
       e le sottrae dai G/U disponibili (`ForecastingPage.tsx`, `leaveDaysLost`).
-- [~] ⚠️ R-B4 — Cost: Dashboard/Report usano `getWorkingDaysBetween` + `getRoleCost`
-      condivisi. Unica divergenza residua: il Forecasting **reimplementa** i giorni
-      lavorativi (`getWorkingDaysOptimized` locale). Refactor verso util condivisa
-      **flaggato** (richiede test di equivalenza su una pagina senza coverage).
-- [ ] ⬜ R-C3/R-C4 — Handoff recruiting→staffing guidato (candidato→risorsa, chiusura richiesta) — feature, decisione di prodotto
+- [x] ✅ R-B4 — Forecasting unificato sulle util condivise di `dateUtils`
+      (`buildHolidaySet`/`isHolidayInSet`/`getWorkingDaysBetweenWithSet`),
+      con **test di equivalenza** vs `isHoliday`/`getWorkingDaysBetween`; corrette
+      2 divergenze latenti (festività locale senza sede, normalizzazione date da timestamp).
+- [x] ✅ R-C3/R-C4 — Handoff recruiting→staffing: "Crea risorsa da candidato"
+      (prefill del form Risorsa) + "Chiudi richiesta collegata" dal colloquio assunto.
 - [x] ✅ User stories aggiornate per chiudere i gap di copertura
 
 ## 3. Utente & self-service (Asse 2, persona P4)
@@ -52,7 +53,7 @@
 
 ## 6. Qualità non-funzionale (gate tecnico)
 - [x] ✅ `npm run typecheck` verde
-- [x] ✅ `npm run test` verde (448 test, +5 nuovi: `DataTable` + `ConfirmationModal`)
+- [x] ✅ `npm run test` verde (452 test: + `DataTable`, `ConfirmationModal`, equivalenza `dateUtils`)
 - [x] ✅ `npm run lint` a zero warning sui file modificati
 - [x] ✅ Nessuna regressione introdotta dall'intervento corrente
 - [ ] ⬜ Accessibilità: focus visibile e navigazione tastiera sulla griglia (R-F1 esteso a tutte le pagine)
@@ -76,5 +77,9 @@ Un incremento è promuovibile quando:
   - R-E3 ✅ "digita per confermare" sullo svuotamento tabella (`ConfirmationModal.confirmPhrase`) + test.
   - R-E4 ✅ nota "effetto al prossimo accesso" aggiunta in RBAC (già presente in Entity Visibility).
   - R-F1 ⚠️ aria-label sui controlli icona-only di `LeavePage` + input accessibile in `ConfirmationModal` (rollout completo: backlog).
-- **Backlog tracciato (feature / decisioni di prodotto)**: R-A2/A3 (undo + diagnosi sovraccarico nella griglia), R-B4 (unificazione working-days del Forecasting con test di equivalenza), R-C3/C4 (handoff recruiting→staffing), F6 (navigazione adattiva), edge case E-01/03/04/06/07/08/09/12.
+- **Sviluppo iterazione 3 (criticità non risolte, scelte dall'utente)**:
+  - R-B4 ✅ Forecasting unificato sulle util condivise di `dateUtils` + test di equivalenza (corrette 2 divergenze latenti).
+  - R-C3 ✅ "Crea risorsa da candidato" (prefill form Risorsa via router state).
+  - R-C4 ✅ "Chiudi richiesta collegata" dal colloquio assunto.
+- **Backlog tracciato (feature / decisioni di prodotto)**: R-A2/A3 (undo + diagnosi sovraccarico nella griglia), F6 (navigazione adattiva), edge case E-01/03/04/06/07/08/09/12.
 - **Gate**: typecheck ✅ + test ✅ (448) + lint ✅ — eseguiti prima del push.

@@ -17,7 +17,7 @@ import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
 import PdfExportButton from '../components/PdfExportButton';
 import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -93,13 +93,14 @@ const RatingStarsDisplay: React.FC<{ value: number }> = ({ value }) => (
 
 const InterviewsPage: React.FC = () => {
     const { hasEntityVisibility } = useAuth();
-    const { interviews, resourceRequests, addInterview, updateInterview, deleteInterview } = useHRContext();
+    const { interviews, resourceRequests, addInterview, updateInterview, deleteInterview, updateResourceRequest } = useHRContext();
     const { roles, resources } = useResourcesContext();
     const { projects } = useProjectsContext();
     const { functions } = useLookupContext();
     const { loading, isActionLoading } = useAppState();
     
     const { addToast } = useToast();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
     // UI State
@@ -196,6 +197,40 @@ const InterviewsPage: React.FC = () => {
             entryDate: toISODate(interview.entryDate)
         });
         setIsModalOpen(true);
+    };
+
+    // Handoff recruiting → staffing (R-C3): porta i dati del candidato assunto
+    // nella creazione di una nuova Risorsa, pre-compilando il form (i campi
+    // obbligatori mancanti restano da completare prima del salvataggio).
+    const createResourceFromCandidate = (interview: Interview | Omit<Interview, 'id'>) => {
+        const fullName = `${interview.candidateName ?? ''} ${interview.candidateSurname ?? ''}`.trim();
+        if (!fullName) {
+            addToast('Inserisci nome e cognome del candidato prima di creare la risorsa.', 'error');
+            return;
+        }
+        const prefillResource = {
+            name: fullName,
+            roleId: interview.roleId || '',
+            function: interview.function || '',
+            hireDate: toISODate(interview.entryDate) || '',
+            notes: interview.cvSummary || interview.notes || '',
+        };
+        addToast(`Completa i dati anagrafici per assumere ${fullName}.`, 'info');
+        navigate('/resources', { state: { prefillResource } });
+    };
+
+    // Handoff recruiting → staffing (R-C4): chiude la richiesta risorsa collegata
+    // una volta coperta dall'assunzione, evitando richieste "orfane" ancora aperte.
+    const linkedOpenRequest = useMemo(() => {
+        if (!editingInterview?.resourceRequestId) return null;
+        const req = resourceRequests.find(r => r.id === editingInterview.resourceRequestId);
+        return req && req.status === 'ATTIVA' ? req : null;
+    }, [editingInterview, resourceRequests]);
+
+    const closeLinkedRequest = async () => {
+        if (!linkedOpenRequest) return;
+        await updateResourceRequest({ ...linkedOpenRequest, status: 'CHIUSA' });
+        addToast(`Richiesta ${linkedOpenRequest.requestCode || ''} chiusa.`, 'success');
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -501,9 +536,31 @@ const InterviewsPage: React.FC = () => {
                                     </select>
                                 </div>
                                 {editingInterview.hiringStatus === 'SI' && (
-                                    <div className="animate-fade-in md:col-span-2">
-                                        <label className="block text-[10px] font-black text-tertiary uppercase mb-1">Data Ingresso Prevista</label>
-                                        <input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={(e) => setEditingInterview({...editingInterview, entryDate: e.target.value})} className="form-input border-tertiary/30" />
+                                    <div className="animate-fade-in md:col-span-2 space-y-3">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-tertiary uppercase mb-1">Data Ingresso Prevista</label>
+                                            <input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={(e) => setEditingInterview({...editingInterview, entryDate: e.target.value})} className="form-input border-tertiary/30" />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => createResourceFromCandidate(editingInterview)}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-tertiary-container text-on-tertiary-container font-bold text-sm hover:opacity-90 transition-opacity"
+                                        >
+                                            <span className="material-symbols-outlined text-lg" aria-hidden="true">person_add</span>
+                                            Crea risorsa da questo candidato
+                                        </button>
+                                        <p className="text-[11px] text-on-surface-variant">Apre la creazione di una nuova risorsa pre-compilata con i dati del candidato. Completa gli altri campi (email, sede…) prima di salvare.</p>
+                                        {linkedOpenRequest && (
+                                            <button
+                                                type="button"
+                                                onClick={closeLinkedRequest}
+                                                disabled={isActionLoading(`updateResourceRequest-${linkedOpenRequest.id}`)}
+                                                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-outline text-primary font-bold text-sm hover:bg-surface-container transition-colors disabled:opacity-50"
+                                            >
+                                                <span className="material-symbols-outlined text-lg" aria-hidden="true">assignment_turned_in</span>
+                                                Chiudi richiesta collegata ({linkedOpenRequest.requestCode || 'senza codice'})
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                                 <div className="md:col-span-2">

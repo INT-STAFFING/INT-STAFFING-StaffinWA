@@ -107,8 +107,9 @@ una **azione di sviluppo** immediata.
 | R-A2 | Sovraccarico non spiegato (G1/Q5) | I manager vogliono diagnosi o solo bilanciamento 1-click? | Popover "perché è rosso" + breakdown (F3) |
 | R-A3 | Nessun undo bulk (G1/Q3) | Preferiscono anteprima pre-apply o undo post-apply? | Conferma con riepilogo celle impattate prima dell'apply |
 | R-B2 | Capacità senza assenze (G4/Q2) | Quanto incide sulle decisioni di hiring l'errore di capacità? | ✅ **già risolto** (verificato): il Forecasting sottrae i `leaves` APPROVED dai G/U |
-| R-B4 | Divergenza KPI (G2/Q1) | Quali numeri gli utenti confrontano tra pagine? | ⚠️ cost/working-days già condivisi in Dashboard/Report; resta divergente solo il Forecasting (refactor flaggato + test di equivalenza) |
-| R-C3 | No conversione candidato→risorsa (G3/Q6) | Quanto tempo si perde nel doppio inserimento? | ⬜ Azione "Crea risorsa da candidato" pre-compilata (feature) |
+| R-B4 | Divergenza KPI (G2/Q1) | Quali numeri gli utenti confrontano tra pagine? | ✅ Forecasting ora usa le util condivise (`buildHolidaySet`/`getWorkingDaysBetweenWithSet`); equivalenza provata da test (corrette 2 divergenze latenti) |
+| R-C3 | No conversione candidato→risorsa (G3/Q6) | Quanto tempo si perde nel doppio inserimento? | ✅ "Crea risorsa da candidato" pre-compila il form Risorsa dal colloquio |
+| R-C4 | Richiesta non chiusa quando coperta | Le richieste restano "orfane" dopo l'assunzione? | ✅ "Chiudi richiesta collegata" dal colloquio assunto (→ CHIUSA) |
 | R-D2 | Stato approvazione assenza poco chiaro (Q4) | Il dipendente sa chi approva e quando? | ✅ approvatore + badge stato (label IT) in `LeavePage` |
 | R-D3 | Empty state ambiguo (E-10/Q4) | Le liste vuote generano ticket di supporto? | ✅ `DataTable` ora distingue "dataset vuoto" da "filtro senza risultati" (+test) |
 | R-E3 | Operazioni distruttive (C1/Q7) | Serve davvero `TRUNCATE` in prod? A chi? | ✅ "digita per confermare" (`ConfirmationModal.confirmPhrase`) sullo svuotamento + test |
