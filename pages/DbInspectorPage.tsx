@@ -647,6 +647,7 @@ const DbInspectorPage: React.FC = () => {
                 }
                 isConfirming={isSaving}
                 confirmButtonText="Sì, Svuota Tabella"
+                confirmPhrase={selectedTable || undefined}
             />
         </div>
     );

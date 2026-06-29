@@ -39,11 +39,12 @@
 ### B1 — Prevedere capacità e deficit a 12 mesi ✅
 - **Accettazione:** la tabella Forecasting mostra G/U Disponibili, Allocati, Utilizzo%, Surplus/Deficit per mese, con grafico.
 
-### B2 — La capacità deve tener conto delle assenze approvate ⚠️
+### B2 — La capacità deve tener conto delle assenze approvate ✅ *(verificato risolto)*
 - **Come** Delivery Lead **voglio** che ferie/permessi approvati riducano i G/U
   disponibili **così da** non sovrastimare la capacità.
-- **Accettazione (target):** i `leaves` con stato `APPROVED` decurtano la
-  disponibilità in Forecasting/Carico. **Stato:** ⚠️ **da validare** (vedi domanda di ricerca R-B2).
+- **Accettazione:** i `leaves` con stato `APPROVED` decurtano la disponibilità in
+  Forecasting. **Stato:** ✅ implementato (`ForecastingPage.tsx` → `leaveDaysLost`
+  sottratto da `availablePersonDays`). L'ipotesi di gap dell'audit era errata.
 
 ### B3 — Confrontare Budget vs Costo Stimato per progetto ✅
 - **Accettazione:** Dashboard e Report mostrano Budget, Costo, Varianza con coerenza di formula.
@@ -79,12 +80,13 @@
 ### D1 — Vedere il proprio carico/allocazioni ✅
 - **Accettazione:** Carico Risorse filtrabile sulla propria persona, read-only.
 
-### D2 — Richiedere un'assenza e sapere a chi va in approvazione ⚠️
+### D2 — Richiedere un'assenza e sapere a chi va in approvazione ✅ *(risolto)*
 - **Come** dipendente **voglio** inviare una richiesta di ferie e **vedere lo
   stato e l'approvatore** **così da** sapere a che punto è.
 - **Accettazione:**
   - ✅ Creo la richiesta, validazione date (`endDate >= startDate`), giorni lavorativi calcolati.
-  - ⚠️ **Gap:** la chiarezza su *chi approva* e sullo stato lato dipendente è debole.
+  - ✅ Lo stato è mostrato con label in italiano ("In Attesa/Approvata/Rifiutata").
+  - ✅ L'**approvatore** è visibile in tabella (colonna dedicata), nella card mobile e nell'export.
 
 ### D3 — Capire una lista vuota ✅ *(risolto in questa iterazione)*
 - **Come** dipendente **voglio** che una pagina senza dati mi dica cosa fare

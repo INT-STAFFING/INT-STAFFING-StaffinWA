@@ -106,14 +106,14 @@ una **azione di sviluppo** immediata.
 |---|---|---|---|
 | R-A2 | Sovraccarico non spiegato (G1/Q5) | I manager vogliono diagnosi o solo bilanciamento 1-click? | Popover "perché è rosso" + breakdown (F3) |
 | R-A3 | Nessun undo bulk (G1/Q3) | Preferiscono anteprima pre-apply o undo post-apply? | Conferma con riepilogo celle impattate prima dell'apply |
-| R-B2 | Capacità senza assenze (G4/Q2) | Quanto incide sulle decisioni di hiring l'errore di capacità? | Sottrarre `leaves` APPROVED dai G/U disponibili in Forecasting |
-| R-B4 | Divergenza KPI (G2/Q1) | Quali numeri gli utenti confrontano tra pagine? | Centralizzare le formule in util condivise + test cross-page |
-| R-C3 | No conversione candidato→risorsa (G3/Q6) | Quanto tempo si perde nel doppio inserimento? | Azione "Crea risorsa da candidato" pre-compilata |
-| R-D2 | Stato approvazione assenza poco chiaro (Q4) | Il dipendente sa chi approva e quando? | Mostrare approvatore + badge stato + toast esplicito |
+| R-B2 | Capacità senza assenze (G4/Q2) | Quanto incide sulle decisioni di hiring l'errore di capacità? | ✅ **già risolto** (verificato): il Forecasting sottrae i `leaves` APPROVED dai G/U |
+| R-B4 | Divergenza KPI (G2/Q1) | Quali numeri gli utenti confrontano tra pagine? | ⚠️ cost/working-days già condivisi in Dashboard/Report; resta divergente solo il Forecasting (refactor flaggato + test di equivalenza) |
+| R-C3 | No conversione candidato→risorsa (G3/Q6) | Quanto tempo si perde nel doppio inserimento? | ⬜ Azione "Crea risorsa da candidato" pre-compilata (feature) |
+| R-D2 | Stato approvazione assenza poco chiaro (Q4) | Il dipendente sa chi approva e quando? | ✅ approvatore + badge stato (label IT) in `LeavePage` |
 | R-D3 | Empty state ambiguo (E-10/Q4) | Le liste vuote generano ticket di supporto? | ✅ `DataTable` ora distingue "dataset vuoto" da "filtro senza risultati" (+test) |
-| R-E3 | Operazioni distruttive (C1/Q7) | Serve davvero `TRUNCATE` in prod? A chi? | Doppia conferma "digita per confermare" + log |
-| R-E4 | Effetto cambio permessi (E-06/Q8) | Gli admin sanno che serve un nuovo login? | Messaggio "ha effetto al prossimo accesso" |
-| R-F1 | Accessibilità (Q9) | Esistono utenti che navigano da tastiera/AT? | `aria-label` sui controlli icona-only + focus visibile |
+| R-E3 | Operazioni distruttive (C1/Q7) | Serve davvero `TRUNCATE` in prod? A chi? | ✅ "digita per confermare" (`ConfirmationModal.confirmPhrase`) sullo svuotamento + test |
+| R-E4 | Effetto cambio permessi (E-06/Q8) | Gli admin sanno che serve un nuovo login? | ✅ nota "effetto al prossimo accesso" in RBAC (già in Entity Visibility) |
+| R-F1 | Accessibilità (Q9) | Esistono utenti che navigano da tastiera/AT? | ⚠️ `aria-label` su `LeavePage` + input accessibile in `ConfirmationModal`; rollout completo backlog |
 
 ### Intervento di sviluppo in questa iterazione
 Per chiudere il loop "proponi → sviluppa → ri-audita" su una criticità ad alto

@@ -15,23 +15,27 @@
 - [x] ✅ Matrice criticità → domanda di ricerca / azione (doc 05 FASE 3)
 
 ## 2. Coerenza (Asse 1)
-- [ ] ⬜ R-B4 — Verificare che "Costo Stimato" e "Utilizzo" usino le **stesse**
-      utility (`utils/costUtils`, `utils/dateUtils`) in Dashboard/Report/Revenue/Forecasting
-- [ ] ⬜ R-B2 — Le assenze `APPROVED` riducono i G/U disponibili nel Forecasting
-- [ ] ⬜ R-C3/R-C4 — Handoff recruiting→staffing guidato (candidato→risorsa, chiusura richiesta)
+- [x] ✅ R-B2 — **Verificato già risolto**: il Forecasting filtra le assenze `APPROVED`
+      e le sottrae dai G/U disponibili (`ForecastingPage.tsx`, `leaveDaysLost`).
+- [~] ⚠️ R-B4 — Cost: Dashboard/Report usano `getWorkingDaysBetween` + `getRoleCost`
+      condivisi. Unica divergenza residua: il Forecasting **reimplementa** i giorni
+      lavorativi (`getWorkingDaysOptimized` locale). Refactor verso util condivisa
+      **flaggato** (richiede test di equivalenza su una pagina senza coverage).
+- [ ] ⬜ R-C3/R-C4 — Handoff recruiting→staffing guidato (candidato→risorsa, chiusura richiesta) — feature, decisione di prodotto
 - [x] ✅ User stories aggiornate per chiudere i gap di copertura
 
 ## 3. Utente & self-service (Asse 2, persona P4)
 - [x] ✅ R-D3 — **Empty state distinto** (dataset vuoto vs filtro senza risultati) in `DataTable` + test
-- [ ] ⬜ R-F1 — `aria-label` sui controlli icona-only (backlog: oggi usano `title`)
-- [ ] ⬜ R-D2 — Mostrare approvatore + badge stato nelle richieste di assenza
-- [ ] ⬜ F6 — Navigazione adattiva/ordinata per rilevanza per ruolo
+- [x] ✅ R-D2 — **Approvatore visibile** + badge stato in italiano nelle richieste di assenza (`LeavePage`)
+- [~] ⚠️ R-F1 — `aria-label` sui controlli icona-only **sulla pagina self-service chiave** (`LeavePage`) + input accessibile in `ConfirmationModal`; rollout sulle restanti pagine resta backlog
+- [ ] ⬜ F6 — Navigazione adattiva/ordinata per rilevanza per ruolo — decisione di prodotto
 
 ## 4. Edge cases (Asse 3) — da coprire con validazione/test
 - [ ] ⬜ E-01 Dimissione a metà allocazione futura
 - [ ] ⬜ E-02 Assenza approvata sovrapposta ad allocazione
 - [ ] ⬜ E-03 `endDate` progetto < allocazioni
 - [ ] ⬜ E-04 Riduzione `maxStaffingPercentage` retroattiva
+- [x] ✅ E-02 Assenza approvata: la capacità del Forecasting già scala i giorni di assenza `APPROVED` (vedi R-B2); segnalazione in griglia staffing resta backlog
 - [x] ✅ E-05 Optimistic locking (`version`) presente — UX errore da rifinire
 - [ ] ⬜ E-06 Cambio entity visibility a sessione attiva (vedi R-E4)
 - [ ] ⬜ E-07 Locale/encoding numeri in import
@@ -42,16 +46,16 @@
 - [ ] ⬜ E-12 Allocazione su festivo/weekend
 
 ## 5. Operazioni rischiose & governance
-- [ ] ⬜ R-E3 — Doppia conferma "digita per confermare" su `TRUNCATE`
-- [ ] ⬜ R-E4 — Messaggio "il cambio permessi ha effetto al prossimo accesso"
+- [x] ✅ R-E3 — **"Digita per confermare"** su svuotamento tabella (`ConfirmationModal.confirmPhrase` + DB Inspector) + test
+- [x] ✅ R-E4 — Nota **"effetto al prossimo accesso"** ora presente sia in Entity Visibility sia in **RBAC** (route permissions)
 - [x] ✅ Conferma su delete/azioni distruttive (ConfirmationModal) presente
 
 ## 6. Qualità non-funzionale (gate tecnico)
 - [x] ✅ `npm run typecheck` verde
-- [x] ✅ `npm run test` verde (446 test, +3 nuovi su `DataTable`)
+- [x] ✅ `npm run test` verde (448 test, +5 nuovi: `DataTable` + `ConfirmationModal`)
 - [x] ✅ `npm run lint` a zero warning sui file modificati
 - [x] ✅ Nessuna regressione introdotta dall'intervento corrente
-- [ ] ⬜ Accessibilità: focus visibile e navigazione tastiera sulla griglia (R-F1 esteso)
+- [ ] ⬜ Accessibilità: focus visibile e navigazione tastiera sulla griglia (R-F1 esteso a tutte le pagine)
 - [ ] ⬜ Strategia mobile dichiarata (read-only vs full) — domanda di prodotto aperta
 
 ## 7. Definizione di "Pronto per la fase successiva"
@@ -65,6 +69,12 @@ Un incremento è promuovibile quando:
 
 ### Stato dell'iterazione corrente
 - **Artefatti di design**: completati (doc 01–06).
-- **Sviluppo**: R-D3 — empty state distinto (dataset vuoto vs filtro) in `DataTable` + test.
-- **Backlog tracciato**: R-A2/A3, R-B2/B4, R-C3/C4, R-D2, R-E3/E4, R-F1, edge cases aperti.
-- **Gate**: typecheck ✅ + test ✅ (446) + lint ✅ — eseguiti prima del push.
+- **Sviluppo iterazione 1**: R-D3 — empty state distinto in `DataTable` + test.
+- **Sviluppo iterazione 2 (criticità non risolte)**:
+  - R-B2 ✅ verificato già risolto (assenze nella capacità del Forecasting).
+  - R-D2 ✅ approvatore + stato (label IT) nelle richieste di assenza.
+  - R-E3 ✅ "digita per confermare" sullo svuotamento tabella (`ConfirmationModal.confirmPhrase`) + test.
+  - R-E4 ✅ nota "effetto al prossimo accesso" aggiunta in RBAC (già presente in Entity Visibility).
+  - R-F1 ⚠️ aria-label sui controlli icona-only di `LeavePage` + input accessibile in `ConfirmationModal` (rollout completo: backlog).
+- **Backlog tracciato (feature / decisioni di prodotto)**: R-A2/A3 (undo + diagnosi sovraccarico nella griglia), R-B4 (unificazione working-days del Forecasting con test di equivalenza), R-C3/C4 (handoff recruiting→staffing), F6 (navigazione adattiva), edge case E-01/03/04/06/07/08/09/12.
+- **Gate**: typecheck ✅ + test ✅ (448) + lint ✅ — eseguiti prima del push.
