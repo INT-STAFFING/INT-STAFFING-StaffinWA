@@ -158,6 +158,16 @@ export const RBACPillar: React.FC = () => {
                     </table>
                 </div>
             </div>
+
+            <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base" aria-hidden="true">info</span> Note
+                </p>
+                <ul className="text-xs text-on-surface-variant space-y-1">
+                    <li>• Le modifiche hanno effetto al prossimo login dell'utente o ricaricamento della sessione: gli utenti già autenticati conservano i permessi correnti fino ad allora.</li>
+                    <li>• Il ruolo ADMIN ha sempre accesso a tutti i moduli e non è limitabile da questa matrice.</li>
+                </ul>
+            </div>
         </div>
     );
 };

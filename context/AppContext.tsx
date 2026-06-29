@@ -523,13 +523,37 @@ const AllocationsInternalProvider: React.FC<{ children: ReactNode }> = ({ childr
         } catch (e) { addToast('Errore durante l\'aggiornamento massivo.', 'error'); }
     }, [addToast]);
 
+    // Applica un insieme arbitrario di aggiornamenti puntuali (assignmentId+date+%).
+    // Riutilizza l'endpoint batch già esistente. È la primitiva su cui si basa
+    // l'undo dell'assegnazione massiva (ripristino dei valori precedenti).
+    const applyAllocationUpdates = useCallback(async (
+        updates: { assignmentId: string; date: string; percentage: number }[]
+    ): Promise<void> => {
+        if (!updates.length) return;
+        try {
+            await apiFetch('/api/staffing?action=allocation', {
+                method: 'POST', body: JSON.stringify({ updates })
+            });
+            setAllocations(prev => {
+                const next = { ...prev };
+                for (const u of updates) {
+                    const assignAlloc = { ...(next[u.assignmentId] || {}) };
+                    if (u.percentage === 0) delete assignAlloc[u.date];
+                    else assignAlloc[u.date] = u.percentage;
+                    next[u.assignmentId] = assignAlloc;
+                }
+                return next;
+            });
+        } catch (e) { addToast('Errore durante l\'aggiornamento delle allocazioni.', 'error'); }
+    }, [addToast]);
+
     const allocState = useMemo<AllocationsState>(() => ({
         allocations, setAllocations, updateAllocation, bulkUpdateAllocations
     }), [allocations, updateAllocation, bulkUpdateAllocations]);
 
     const allocValue = useMemo<AllocationsContextType>(() => ({
-        allocations, updateAllocation, bulkUpdateAllocations
-    }), [allocations, updateAllocation, bulkUpdateAllocations]);
+        allocations, updateAllocation, bulkUpdateAllocations, applyAllocationUpdates
+    }), [allocations, updateAllocation, bulkUpdateAllocations, applyAllocationUpdates]);
 
     return (
         <AllocationsStateContext.Provider value={allocState}>

@@ -366,10 +366,10 @@ const DbInspectorPage: React.FC = () => {
                     {/* Action Column MUST be last for DataTable to sticky it left correctly */}
                     <td className="px-2 py-2 text-center">
                          <div className="flex items-center justify-center gap-1">
-                            <button onClick={handleSave} disabled={isSaving} className="p-1 rounded bg-primary text-on-primary shadow-sm hover:opacity-90 disabled:opacity-50" title="Salva">
+                            <button onClick={handleSave} disabled={isSaving} className="p-1 rounded bg-primary text-on-primary shadow-sm hover:opacity-90 disabled:opacity-50" aria-label="Salva" title="Salva">
                                 {isSaving ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">check</span>}
                             </button>
-                            <button onClick={handleCancel} disabled={isSaving} className="p-1 rounded bg-surface-variant text-on-surface-variant hover:bg-surface-container-high" title="Annulla">
+                            <button onClick={handleCancel} disabled={isSaving} className="p-1 rounded bg-surface-variant text-on-surface-variant hover:bg-surface-container-high" aria-label="Annulla" title="Annulla">
                                 <span className="material-symbols-outlined text-sm">close</span>
                             </button>
                         </div>
@@ -647,6 +647,7 @@ const DbInspectorPage: React.FC = () => {
                 }
                 isConfirming={isSaving}
                 confirmButtonText="Sì, Svuota Tabella"
+                confirmPhrase={selectedTable || undefined}
             />
         </div>
     );

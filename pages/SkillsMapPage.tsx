@@ -543,7 +543,7 @@ const SkillsMapPage: React.FC = () => {
                                         placeholder="Aggiungi nuova competenza..."
                                     />
                                 </div>
-                                <button type="button" onClick={handleAddTempSkill} disabled={!tempSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50">
+                                <button aria-label="Aggiungi competenza" type="button" onClick={handleAddTempSkill} disabled={!tempSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50">
                                     <span className="material-symbols-outlined">add</span>
                                 </button>
                             </div>

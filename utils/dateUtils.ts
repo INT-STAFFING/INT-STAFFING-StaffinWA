@@ -115,6 +115,92 @@ export const getWorkingDaysBetween = (
 };
 
 /**
+ * Tipo del set di festività precompilato. Le chiavi sono `YYYY-MM-DD:ALL`
+ * (festività nazionali / chiusure aziendali) oppure `YYYY-MM-DD:<location>`
+ * (festività locali legate a una sede).
+ */
+export type HolidaySet = Set<string>;
+
+/**
+ * Sentinella per le festività locali prive di sede: replica la semantica di
+ * {@link isHoliday}, dove un `LOCAL_HOLIDAY` con `location` nulla risulta festivo
+ * per le risorse anch'esse senza sede (`location === null`).
+ */
+const NULL_LOCATION_KEY = '__NULL_LOCATION__';
+
+/**
+ * Precompila un Set di festività per lookup O(1), da usare nei loop "caldi"
+ * (es. forecasting su molte risorse × mesi). La semantica è **identica** a
+ * {@link isHoliday}: le festività nazionali e le chiusure aziendali valgono per
+ * tutte le sedi; le festività locali valgono solo per la sede indicata (o per le
+ * risorse senza sede se l'evento è privo di sede).
+ */
+export const buildHolidaySet = (companyCalendar: CalendarEvent[]): HolidaySet => {
+    const set = new Set<string>();
+    for (const event of companyCalendar) {
+        const eventDateStr = typeof event.date === 'string'
+            ? event.date.split('T')[0]
+            : toISODateString(event.date);
+        if (!eventDateStr) continue;
+        if (event.type === 'NATIONAL_HOLIDAY' || event.type === 'COMPANY_CLOSURE') {
+            set.add(`${eventDateStr}:ALL`);
+        } else if (event.type === 'LOCAL_HOLIDAY') {
+            set.add(`${eventDateStr}:${event.location || NULL_LOCATION_KEY}`);
+        }
+    }
+    return set;
+};
+
+/**
+ * Variante O(1) di {@link isHoliday} basata su un Set precompilato con
+ * {@link buildHolidaySet}. Produce lo stesso risultato di `isHoliday`.
+ */
+export const isHolidayInSet = (
+    date: Date,
+    resourceLocation: string | null,
+    holidaySet: HolidaySet
+): boolean => {
+    const dateStr = toISODateString(date);
+    if (!dateStr) return false;
+    if (holidaySet.has(`${dateStr}:ALL`)) return true;
+    if (holidaySet.has(`${dateStr}:${resourceLocation || NULL_LOCATION_KEY}`)) return true;
+    return false;
+};
+
+/**
+ * Variante O(1) di {@link getWorkingDaysBetween} basata su un Set precompilato.
+ * Da preferire quando si calcolano i giorni lavorativi ripetutamente sullo stesso
+ * calendario (evita di ri-scansionare l'intero calendario per ogni giorno).
+ */
+export const getWorkingDaysBetweenWithSet = (
+    startDate: Date,
+    endDate: Date,
+    holidaySet: HolidaySet,
+    resourceLocation: string | null = null
+): number => {
+    const current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
+    const end = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()));
+
+    if (isNaN(current.getTime()) || isNaN(end.getTime())) return 0;
+
+    let count = 0;
+    let safety = 0;
+
+    while (current.getTime() <= end.getTime() && safety < 5000) {
+        const dayOfWeek = current.getUTCDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+        if (!isWeekend && !isHolidayInSet(current, resourceLocation, holidaySet)) {
+            count++;
+        }
+
+        current.setUTCDate(current.getUTCDate() + 1);
+        safety++;
+    }
+    return count;
+};
+
+/**
  * Calcola durata assenza in giorni lavorativi.
  */
 export const getLeaveDurationInWorkingDays = (

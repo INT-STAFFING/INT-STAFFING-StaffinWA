@@ -661,18 +661,18 @@ const SimulationPage: React.FC = () => {
                     </div>
 
                      {/* Export/Import Buttons */}
-                     <button onClick={handleExportExcel} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Esporta Excel">
+                     <button onClick={handleExportExcel} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" aria-label="Esporta Excel" title="Esporta Excel">
                         <span className="material-symbols-outlined">download</span>
                     </button>
-                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Importa Excel">
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" aria-label="Importa Excel" title="Importa Excel">
                         <span className="material-symbols-outlined">upload</span>
                     </button>
                     <input type="file" ref={fileInputRef} onChange={handleImportExcel} className="hidden" accept=".xlsx, .xls" />
 
-                    <button onClick={handleImportRealData} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Importa Dati Reali">
+                    <button onClick={handleImportRealData} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" aria-label="Importa Dati Reali" title="Importa Dati Reali">
                         <span className="material-symbols-outlined">cloud_download</span>
                     </button>
-                    <button onClick={() => setIsLoadModalOpen(true)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Carica Scenario">
+                    <button onClick={() => setIsLoadModalOpen(true)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" aria-label="Carica Scenario" title="Carica Scenario">
                         <span className="material-symbols-outlined">folder_open</span>
                     </button>
                     <button onClick={openSaveModal} disabled={isLoading || !state.hasUnsavedChanges} className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold shadow hover:opacity-90 disabled:opacity-50 flex items-center gap-2">

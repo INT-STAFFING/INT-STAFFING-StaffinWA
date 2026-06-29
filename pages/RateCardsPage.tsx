@@ -228,7 +228,7 @@ export default function RateCardsPage() {
             <div className="w-full md:w-1/3 lg:w-1/4 flex flex-col gap-4 min-w-[250px]">
                 <div className="flex justify-between items-center px-2">
                     <h2 className="text-xl font-bold text-on-surface">Listini</h2>
-                    <button onClick={openNewCardModal} className="p-2 bg-primary text-on-primary rounded-full shadow hover:opacity-90">
+                    <button aria-label="Aggiungi listino" onClick={openNewCardModal} className="p-2 bg-primary text-on-primary rounded-full shadow hover:opacity-90">
                         <span className="material-symbols-outlined">add</span>
                     </button>
                 </div>

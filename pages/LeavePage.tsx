@@ -49,6 +49,13 @@ const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id
     return basePayload;
 };
 
+/** Etichette in italiano per lo stato richiesta (single source of truth UI). */
+const LEAVE_STATUS_LABELS: Record<string, string> = {
+    APPROVED: 'Approvata',
+    PENDING: 'In Attesa',
+    REJECTED: 'Rifiutata',
+};
+
 const leaveRequestSchema = z.object({
     resourceId: z.string().min(1, 'La risorsa è obbligatoria'),
     typeId: z.string().min(1, 'La tipologia è obbligatoria'),
@@ -128,26 +135,32 @@ const LeavePage: React.FC = () => {
             const resource = resources.find(r => r.id === req.resourceId);
             const type = leaveTypes.find(t => t.id === req.typeId);
             const duration = getWorkingDaysBetween(new Date(req.startDate), new Date(req.endDate), companyCalendar, resource?.location || null);
-            
+            // Nomi degli approvatori, così che il richiedente sappia a chi è andata la richiesta.
+            const approverNames = (req.approverIds ?? [])
+                .map(id => resources.find(r => r.id === id)?.name)
+                .filter((name): name is string => Boolean(name));
+
             return {
                 ...req,
                 resourceName: resource?.name || 'Sconosciuto',
                 typeName: type?.name || 'Sconosciuto',
                 typeColor: type?.color || '#ccc',
-                duration: req.isHalfDay ? 0.5 : duration
+                duration: req.isHalfDay ? 0.5 : duration,
+                approverNames,
+                statusLabel: LEAVE_STATUS_LABELS[req.status] || req.status,
             };
         });
     }, [filteredRequests, resources, leaveTypes, companyCalendar]);
 
     const exportData = useMemo(() => {
-        const statusMap: Record<string, string> = { 'APPROVED': 'Approvata', 'PENDING': 'In Attesa', 'REJECTED': 'Rifiutata' };
         return enrichedRequests.map(r => ({
             'Risorsa': r.resourceName,
             'Tipologia': r.typeName,
             'Data Inizio': formatDateFull(r.startDate),
             'Data Fine': formatDateFull(r.endDate),
             'Durata (gg)': r.duration,
-            'Stato': statusMap[r.status] || r.status,
+            'Stato': r.statusLabel,
+            'Approvatore': r.approverNames.join(', ') || '—',
             'Note': r.notes || ''
         }));
     }, [enrichedRequests]);
@@ -372,8 +385,13 @@ const LeavePage: React.FC = () => {
         { header: 'GG', sortKey: 'duration', cell: r => <span className="font-bold">{r.duration} {r.isHalfDay ? '(1/2)' : ''}</span> },
         { header: 'Stato', sortKey: 'status', cell: r => (
             <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${r.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : r.status === 'REJECTED' ? 'bg-error-container text-on-error-container' : 'bg-yellow-container text-on-yellow-container'}`}>
-                {r.status}
+                {r.statusLabel}
             </span>
+        )},
+        { header: 'Approvatore', sortKey: 'approverNames', cell: r => (
+            r.approverNames.length > 0
+                ? <span className="text-on-surface-variant">{r.approverNames.join(', ')}</span>
+                : <span className="text-on-surface-variant/60 italic">Da assegnare</span>
         )},
     ];
 
@@ -393,14 +411,14 @@ const LeavePage: React.FC = () => {
                     <div className="flex items-center justify-end gap-2">
                         {canApprove && (
                             <>
-                                <button onClick={() => handleQuickAction(req, 'APPROVED')} disabled={isSaving} className="p-2 rounded-full text-tertiary hover:bg-tertiary-container transition-colors" title="Approva"><span className="material-symbols-outlined">check_circle</span></button>
-                                <button onClick={() => handleQuickAction(req, 'REJECTED')} disabled={isSaving} className="p-2 rounded-full text-error hover:bg-error-container transition-colors" title="Rifiuta"><span className="material-symbols-outlined">cancel</span></button>
+                                <button onClick={() => handleQuickAction(req, 'APPROVED')} disabled={isSaving} className="p-2 rounded-full text-tertiary hover:bg-tertiary-container transition-colors" title="Approva" aria-label={`Approva la richiesta di ${req.resourceName}`}><span className="material-symbols-outlined" aria-hidden="true">check_circle</span></button>
+                                <button onClick={() => handleQuickAction(req, 'REJECTED')} disabled={isSaving} className="p-2 rounded-full text-error hover:bg-error-container transition-colors" title="Rifiuta" aria-label={`Rifiuta la richiesta di ${req.resourceName}`}><span className="material-symbols-outlined" aria-hidden="true">cancel</span></button>
                             </>
                         )}
                         {canEdit && (
                             <>
-                                <button onClick={() => openEditRequestModal(req)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                                <button onClick={() => setRequestToDelete(req)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error transition-colors" title="Elimina"><span className="material-symbols-outlined">delete</span></button>
+                                <button onClick={() => openEditRequestModal(req)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors" title="Modifica" aria-label={`Modifica la richiesta di ${req.resourceName}`}><span className="material-symbols-outlined" aria-hidden="true">edit</span></button>
+                                <button onClick={() => setRequestToDelete(req)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error transition-colors" title="Elimina" aria-label={`Elimina la richiesta di ${req.resourceName}`}><span className="material-symbols-outlined" aria-hidden="true">delete</span></button>
                             </>
                         )}
                     </div>
@@ -427,10 +445,14 @@ const LeavePage: React.FC = () => {
                             <span className="text-xs text-on-surface-variant font-medium">{req.typeName}</span>
                         </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${req.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-yellow-container text-on-yellow-container'}`}>{req.status}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${req.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : req.status === 'REJECTED' ? 'bg-error-container text-on-error-container' : 'bg-yellow-container text-on-yellow-container'}`}>{req.statusLabel}</span>
                 </div>
                 <div className="text-xs font-mono text-on-surface-variant bg-surface-container-low p-2 rounded-lg">
                     {formatDateFull(req.startDate)} → {formatDateFull(req.endDate)} ({req.duration}gg {req.isHalfDay ? '1/2' : ''})
+                </div>
+                <div className="text-xs text-on-surface-variant flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">how_to_reg</span>
+                    <span>Approvatore: {req.approverNames.length > 0 ? req.approverNames.join(', ') : 'da assegnare'}</span>
                 </div>
                 <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant">
                     {canApprove && (
@@ -569,9 +591,9 @@ const LeavePage: React.FC = () => {
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-bold capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
                             <div className="flex gap-1">
-                                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
+                                <button aria-label="Mese precedente" onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
                                 <button onClick={handleToday} className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-full border border-outline hover:bg-surface-container">Oggi</button>
-                                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_right</span></button>
+                                <button aria-label="Mese successivo" onClick={handleNextMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_right</span></button>
                             </div>
                         </div>
                     </div>

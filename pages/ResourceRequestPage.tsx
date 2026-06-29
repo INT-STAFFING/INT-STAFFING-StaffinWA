@@ -488,7 +488,7 @@ export const ResourceRequestPage: React.FC = () => {
                 <div className="flex-grow">
                     <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
                 </div>
-                <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 font-bold transition-opacity"><span className="material-symbols-outlined text-base">refresh</span></button>
+                <button aria-label="Azzera filtri" onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 font-bold transition-opacity"><span className="material-symbols-outlined text-base">refresh</span></button>
             </div>
         </div>
     );

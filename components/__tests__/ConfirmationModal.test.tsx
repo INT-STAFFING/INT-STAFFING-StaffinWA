@@ -118,3 +118,41 @@ describe('ConfirmationModal – stato isConfirming', () => {
         expect(confermaBtn.disabled).toBe(false);
     });
 });
+
+describe('ConfirmationModal – confirmPhrase (digita per confermare)', () => {
+    it('blocca la conferma finché la frase non viene digitata correttamente', () => {
+        const onConfirm = vi.fn();
+        render(
+            <ConfirmationModal
+                {...defaultProps}
+                onConfirm={onConfirm}
+                confirmPhrase="resources"
+                confirmButtonText="Svuota"
+            />
+        );
+        const confermaBtn = screen.getByText('Svuota') as HTMLButtonElement;
+        // Inizialmente disabilitato
+        expect(confermaBtn.disabled).toBe(true);
+        fireEvent.click(confermaBtn);
+        expect(onConfirm).not.toHaveBeenCalled();
+
+        // Frase sbagliata → resta disabilitato
+        const input = screen.getByLabelText('Digita resources per confermare');
+        fireEvent.change(input, { target: { value: 'resource' } });
+        expect(confermaBtn.disabled).toBe(true);
+
+        // Frase esatta → abilitato e cliccabile
+        fireEvent.change(input, { target: { value: 'resources' } });
+        expect(confermaBtn.disabled).toBe(false);
+        fireEvent.click(confermaBtn);
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('senza confirmPhrase non mostra il campo e conferma direttamente', () => {
+        const onConfirm = vi.fn();
+        render(<ConfirmationModal {...defaultProps} onConfirm={onConfirm} />);
+        expect(screen.queryByLabelText(/per confermare/)).toBeNull();
+        fireEvent.click(screen.getByText('Conferma'));
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+});

@@ -88,7 +88,7 @@ export const BillingPlanModal: React.FC<{
                             <option value="FIXED_PRICE">Fixed Price (A Corpo)</option>
                         </select>
                         {billingType !== project.billingType && (
-                            <button onClick={handleSaveType} className="p-2 bg-primary text-on-primary rounded-full hover:opacity-90">
+                            <button aria-label="Salva tipologia" onClick={handleSaveType} className="p-2 bg-primary text-on-primary rounded-full hover:opacity-90">
                                 <span className="material-symbols-outlined text-sm">save</span>
                             </button>
                         )}
@@ -176,7 +176,7 @@ export const BillingPlanModal: React.FC<{
                                 <input type="number" step="0.01" className="form-input text-xs p-2" required value={newMilestone.amount || ''} onChange={e => setNewMilestone({...newMilestone, amount: parseFloat(e.target.value)})}/>
                             </div>
                             <div className="col-span-1">
-                                <button type="submit" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addBillingMilestone')}>
+                                <button aria-label="Aggiungi tipologia" type="submit" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addBillingMilestone')}>
                                     <span className="material-symbols-outlined text-sm">add</span>
                                 </button>
                             </div>

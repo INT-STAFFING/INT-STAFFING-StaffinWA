@@ -10,7 +10,7 @@ import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useHRContext } from '../context/HRContext';
 import { LeaveRequest, Project, Assignment } from '../types';
-import { getWorkingDaysBetween, getLeaveDurationInWorkingDays, parseISODate, isHoliday } from '../utils/dateUtils';
+import { getWorkingDaysBetween, getLeaveDurationInWorkingDays, parseISODate, isHoliday, buildHolidaySet, isHolidayInSet, getWorkingDaysBetweenWithSet } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
 /**
@@ -59,53 +59,17 @@ const ForecastingPage: React.FC = () => {
         setFilters({ function: '', clientId: '', projectId: ''});
     };
 
-    // OPTIMIZATION: Pre-calculate holiday lookup map for O(1) access
-    // Key: "YYYY-MM-DD:LOCATION" or "YYYY-MM-DD:ALL"
-    const holidayMap = useMemo(() => {
-        const map = new Set<string>();
-        companyCalendar.forEach(event => {
-            // FIX: Handle event.date as any to avoid TS error 'property does not exist on type never'
-            const dateStr = typeof event.date === 'string' ? event.date : (event.date as any).toISOString().split('T')[0];
-            if (event.type === 'LOCAL_HOLIDAY' && event.location) {
-                map.add(`${dateStr}:${event.location}`);
-            } else {
-                map.add(`${dateStr}:ALL`);
-            }
-        });
-        return map;
-    }, [companyCalendar]);
+    // OPTIMIZATION: Set di festività precompilato per lookup O(1) nei loop caldi.
+    // Usa l'utility condivisa in dateUtils, così la semantica (festività
+    // nazionali/locali, normalizzazione date UTC) è IDENTICA a getWorkingDaysBetween
+    // usato in Dashboard/Report — evita divergenze tra i KPI delle diverse pagine.
+    const holidaySet = useMemo(() => buildHolidaySet(companyCalendar), [companyCalendar]);
 
-    // Optimized isHoliday for inner loops using String lookup
-    const checkIsHolidayOptimized = (date: Date, location: string | null) => {
-        const y = date.getUTCFullYear();
-        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(date.getUTCDate()).padStart(2, '0');
-        const dateStr = `${y}-${m}-${d}`;
-        
-        if (holidayMap.has(`${dateStr}:ALL`)) return true;
-        if (location && holidayMap.has(`${dateStr}:${location}`)) return true;
-        return false;
-    };
+    const checkIsHolidayOptimized = (date: Date, location: string | null) =>
+        isHolidayInSet(date, location, holidaySet);
 
-    // Optimized getWorkingDays using UTC methods
-    const getWorkingDaysOptimized = (startDate: Date, endDate: Date, location: string | null): number => {
-        let count = 0;
-        const currentDate = new Date(startDate.getTime()); // Clone
-        
-        // Safety break
-        let iterations = 0;
-        
-        while (currentDate.getTime() <= endDate.getTime() && iterations < 370) { // Max 1 year check
-            const dayOfWeek = currentDate.getUTCDay(); // 0 = Sunday, 6 = Saturday
-            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(currentDate, location)) {
-                count++;
-            }
-            // Advance by exactly one day in UTC
-            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-            iterations++;
-        }
-        return count;
-    };
+    const getWorkingDaysOptimized = (startDate: Date, endDate: Date, location: string | null): number =>
+        getWorkingDaysBetweenWithSet(startDate, endDate, holidaySet, location);
 
     // 1. Pre-calcolo della media storica per ogni assegnazione
     const historicalAverages = useMemo(() => {
@@ -314,7 +278,7 @@ const ForecastingPage: React.FC = () => {
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, filters, projects, holidayMap, historicalAverages, enableProjections, leaveRequests, leaveTypes, companyCalendar]);
+    }, [resources, assignments, allocations, forecastHorizon, filters, projects, holidaySet, historicalAverages, enableProjections, leaveRequests, leaveTypes, companyCalendar]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 
