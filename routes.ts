@@ -45,7 +45,7 @@ export const routesManifest: AppRoute[] = [
         label: 'Cerca',
         icon: 'search',
         section: 'Principale',
-        showInSidebar: true,
+        showInSidebar: false,
         showInBottomNav: true,
         featureFlag: 'pageVisibility',
         component: createLazyPage(() => import('./pages/GlobalSearchPage').then(module => ({ default: module.default }))),
