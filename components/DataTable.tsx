@@ -268,16 +268,46 @@ export function DataTable<T extends { id?: string }>({
     };
 
     const canAddNew = Boolean(title && addNewButtonLabel);
-    const emptyContent = emptyMessage ?? (
-        <EmptyState
-            size="compact"
-            icon="inbox"
-            title="Nessun dato trovato"
-            description="Non ci sono elementi da mostrare con i filtri o i criteri correnti."
-            actionLabel={canAddNew ? addNewButtonLabel : undefined}
-            onAction={canAddNew ? onAddNew : undefined}
-        />
+
+    // Distingue i due stati vuoti, che hanno cause e azioni diverse:
+    //  - dataset realmente vuoto (primo accesso / nessun record): si guida alla creazione;
+    //  - risultato vuoto a causa dei filtri attivi: si offre l'azzeramento dei filtri.
+    // Evita il messaggio fuorviante "con i filtri o i criteri correnti" quando non
+    // ci sono filtri attivi (es. un dipendente che apre per la prima volta le Assenze).
+    const hasActiveFilters = useMemo(
+        () => Object.values(filters).some((value) => value && value.trim() !== ''),
+        [filters]
     );
+    const clearFilters = useCallback(() => setFilters({}), []);
+
+    let emptyContent: React.ReactNode;
+    if (hasActiveFilters) {
+        emptyContent = (
+            <EmptyState
+                size="compact"
+                icon="search_off"
+                title="Nessun risultato"
+                description="Nessun elemento corrisponde ai filtri impostati. Prova a modificarli o ad azzerarli."
+                actionLabel="Azzera filtri"
+                onAction={clearFilters}
+            />
+        );
+    } else if (emptyMessage) {
+        emptyContent = emptyMessage;
+    } else {
+        emptyContent = (
+            <EmptyState
+                size="compact"
+                icon="inbox"
+                title="Nessun elemento presente"
+                description={canAddNew
+                    ? 'Non c’è ancora nulla qui. Crea il primo elemento per iniziare.'
+                    : 'Non c’è ancora nulla da mostrare.'}
+                actionLabel={canAddNew ? addNewButtonLabel : undefined}
+                onAction={canAddNew ? onAddNew : undefined}
+            />
+        );
+    }
     const loadingLabel = loadingMessage ?? 'Caricamento...';
 
     return (
