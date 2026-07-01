@@ -71,24 +71,24 @@ import 'd3-transition'; // Import transition to avoid crashes
 
 export const KpiHeaderCards: React.FC<KpiHeaderCardsProps> = ({ overallKPIs, currentMonthKPIs }) => (
     <>
-        <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-primary">
+        <div className="bg-surface-container-low rounded-2xl shadow p-5">
             <h3 className="text-sm font-medium text-on-surface-variant">Budget Complessivo</h3>
-            <p className="mt-1 text-3xl font-semibold text-on-surface">{formatCurrency(overallKPIs.totalBudget)}</p>
+            <p className="mt-1 text-3xl font-semibold text-primary">{formatCurrency(overallKPIs.totalBudget)}</p>
         </div>
-        <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-error">
+        <div className="bg-surface-container-low rounded-2xl shadow p-5">
             <h3 className="text-sm font-medium text-on-surface-variant">Costo Stimato (Mese Corrente)</h3>
-            <p className="mt-1 text-3xl font-semibold text-on-surface">{formatCurrency(currentMonthKPIs.totalCost)}</p>
+            <p className="mt-1 text-3xl font-semibold text-error">{formatCurrency(currentMonthKPIs.totalCost)}</p>
         </div>
-        <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-tertiary">
+        <div className="bg-surface-container-low rounded-2xl shadow p-5">
             <h3 className="text-sm font-medium text-on-surface-variant">Giorni Allocati (Mese Corrente)</h3>
-            <p className="mt-1 text-3xl font-semibold text-on-surface">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
+            <p className="mt-1 text-3xl font-semibold text-tertiary">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
         </div>
     </>
 );
 
 export const AttentionCards: React.FC<AttentionCardsProps> = ({ overallKPIs, navigate }) => (
     <>
-        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px] border-l-4 border-error`} onClick={() => navigate('/resources?filter=unassigned')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/resources?filter=unassigned')}>
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Risorse Non Allocate</h3>
@@ -105,7 +105,7 @@ export const AttentionCards: React.FC<AttentionCardsProps> = ({ overallKPIs, nav
                 </div>
             )}
         </div>
-        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px] border-l-4 border-error`} onClick={() => navigate('/projects?filter=unstaffed')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/projects?filter=unstaffed')}>
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Progetti Senza Staff</h3>
@@ -126,7 +126,7 @@ export const AttentionCards: React.FC<AttentionCardsProps> = ({ overallKPIs, nav
 );
 
 export const UnallocatedFteCard: React.FC<UnallocatedFteCardProps> = ({ kpis }) => (
-    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-secondary`}>
+    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px]`}>
         <div className="flex justify-between items-start w-full">
             <div>
                 <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>FTE Non Allocati (Mese Corrente)</h3>
@@ -144,7 +144,7 @@ export const UnallocatedFteCard: React.FC<UnallocatedFteCardProps> = ({ kpis }) 
 );
 
 export const NoWbsLeakageCard: React.FC<NoWbsLeakageCardProps> = ({ leakageAmount, navigate }) => (
-    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-error cursor-pointer hover:opacity-90`} onClick={() => navigate('/wbs-analysis')}>
+    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] cursor-pointer hover:opacity-90`} onClick={() => navigate('/wbs-analysis')}>
          <div className="flex justify-between items-start w-full">
             <div>
                 <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Leakage "No WBS" (Mese Corrente)</h3>
@@ -184,7 +184,7 @@ export const LeavesOverviewCard: React.FC<LeavesOverviewCardProps> = ({ navigate
     }, [leaveRequests]);
 
     return (
-        <div className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-tertiary cursor-pointer hover:bg-surface-container" onClick={() => navigate('/leaves')}>
+        <div className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] cursor-pointer hover:bg-surface-container" onClick={() => navigate('/leaves')}>
             <div className="flex justify-between items-start w-full mb-3">
                 <h3 className="text-sm font-medium text-on-surface-variant">Panoramica Assenze</h3>
                 <span className="material-symbols-outlined text-3xl opacity-50 text-tertiary">event_busy</span>
@@ -295,7 +295,7 @@ export const AverageAllocationCard: React.FC<AverageAllocationCardProps> = ({ da
     }, [data]);
     
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Allocazione Media</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -352,7 +352,7 @@ export const FtePerProjectCard: React.FC<FtePerProjectCardProps> = ({ data, filt
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">FTE per Progetto</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -412,7 +412,7 @@ export const BudgetAnalysisCard: React.FC<BudgetAnalysisCardProps> = ({ data, fi
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Analisi Budget</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -472,7 +472,7 @@ export const TemporalBudgetAnalysisCard: React.FC<TemporalBudgetAnalysisCardProp
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4">
                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
@@ -538,7 +538,7 @@ export const AverageDailyRateCard: React.FC<AverageDailyRateCardProps> = ({ data
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
@@ -590,7 +590,7 @@ export const UnderutilizedResourcesCard: React.FC<UnderutilizedResourcesCardProp
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -636,7 +636,7 @@ export const MonthlyClientCostCard: React.FC<MonthlyClientCostCardProps> = ({ da
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
                  <div className="flex flex-wrap items-center gap-2">
@@ -688,7 +688,7 @@ export const EffortByFunctionCard: React.FC<EffortByFunctionCardProps> = ({ data
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Function</h2>
                  <div className="flex flex-wrap items-center gap-2">
@@ -741,7 +741,7 @@ export const EffortByIndustryCard: React.FC<EffortByIndustryCardProps> = ({ data
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-secondary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Industry</h2>
                  <div className="flex flex-wrap items-center gap-2">
@@ -791,7 +791,7 @@ export const LocationAnalysisCard: React.FC<LocationAnalysisCardProps> = ({ data
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -863,7 +863,7 @@ export const SaturationTrendCard: React.FC<SaturationTrendCardProps> = ({ trendR
     }, [data, trendResource]);
 
     return (
-        <div className="h-full bg-surface-container rounded-2xl shadow p-4 sm:p-6 border-l-4 border-primary flex flex-col">
+        <div className="h-full bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
                 <div className="flex items-center gap-2">
@@ -926,7 +926,7 @@ export const CostForecastCard: React.FC<CostForecastCardProps> = ({ data }) => {
     }, [data]);
 
     return (
-        <div className="h-full bg-surface-container rounded-2xl shadow p-4 sm:p-6 border-l-4 border-primary flex flex-col">
+        <div className="h-full bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -988,7 +988,7 @@ export const AllocationMatrixCard: React.FC<AllocationMatrixCardProps> = ({ data
     }, [matrix, sortedFunctions, sortedIndustries]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Matrice Allocazione (FTE)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1035,7 +1035,7 @@ export const RevenueByIndustryCard: React.FC<RevenueByIndustryCardProps> = ({ da
     const exportData = useMemo(() => data.map(d => ({ Industry: d.name, Revenue: formatCurrency(d.value) })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-secondary h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Top 5 Revenue per Industry</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1058,7 +1058,7 @@ export const BenchByFunctionCard: React.FC<BenchByFunctionCardProps> = ({ data, 
      const exportData = useMemo(() => data.map(d => ({ Function: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-error h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Bench % per Function</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1081,7 +1081,7 @@ export const BenchByIndustryCard: React.FC<BenchByIndustryCardProps> = ({ data, 
     const exportData = useMemo(() => data.map(d => ({ Industry: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-error h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Bench % per Industry</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1109,7 +1109,7 @@ export const WbsSaturationCard: React.FC<WbsSaturationCardProps> = ({ data, isLo
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-error h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Saturazione WBS (Top Rischi)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1149,7 +1149,7 @@ export const ContractExpirationsCard: React.FC<ContractExpirationsCardProps> = (
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-tertiary h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Scadenzario Contratti (90gg)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1232,7 +1232,7 @@ export const RevenueMixCard: React.FC<RevenueMixCardProps> = ({ data, isLoading 
     }, [data, isLoading]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Revenue Mix (T&M vs Fixed)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1266,7 +1266,7 @@ export const BillingPipelineCard: React.FC<BillingPipelineCardProps> = ({ data, 
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-secondary h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Pipeline Fatturazione (PLANNED)</h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1301,7 +1301,7 @@ export const TopMarginProjectsCard: React.FC<TopMarginProjectsCardProps> = ({ da
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-tertiary h-full">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col h-full">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Top Progetti per Margine (Mese Corrente)</h2>
                 <div className="flex flex-wrap items-center gap-2">

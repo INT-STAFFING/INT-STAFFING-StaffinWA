@@ -401,21 +401,21 @@ const WorkloadPage: React.FC = () => {
         const { avg, allocated, available } = calculateAvgLoadForPeriod(resource, firstCol.startDate, lastCol.endDate);
         const max = resource.maxStaffingPercentage;
 
-        let colorClass = 'border-primary';
+        let textColor = 'text-primary';
         let barColor = 'bg-primary';
-        if (Math.round(avg) > max) { colorClass = 'border-error'; barColor = 'bg-error'; }
-        else if (Math.round(avg) === max) { colorClass = 'border-tertiary'; barColor = 'bg-tertiary'; }
-        else if (avg > 0) { colorClass = 'border-yellow-500'; barColor = 'bg-yellow-500'; }
+        if (Math.round(avg) > max) { textColor = 'text-error'; barColor = 'bg-error'; }
+        else if (Math.round(avg) === max) { textColor = 'text-tertiary'; barColor = 'bg-tertiary'; }
+        else if (avg > 0) { textColor = 'text-secondary'; barColor = 'bg-secondary'; }
 
         return (
-            <div key={resource.id} className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 ${colorClass} flex flex-col gap-3 mb-4`}>
+            <div key={resource.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 mb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex flex-col min-w-0">
                         <h3 className="font-bold text-lg text-on-surface truncate">{resource.name}</h3>
                         <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">{rolesById.get(resource.roleId)?.name || 'N/A'}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                        <span className="text-lg font-black text-on-surface">{avg.toFixed(0)}%</span>
+                        <span className={`text-lg font-black ${textColor}`}>{avg.toFixed(0)}%</span>
                         <p className="text-[10px] text-on-surface-variant font-bold uppercase">Utilizzo Medio</p>
                     </div>
                 </div>

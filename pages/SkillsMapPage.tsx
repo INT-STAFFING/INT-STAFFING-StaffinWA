@@ -472,19 +472,19 @@ const SkillsMapPage: React.FC = () => {
         <div className="space-y-6">
             {/* Dashboard KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Top Competenza</p>
-                    <p className="text-2xl font-bold text-on-surface truncate" title={kpis.topSkill}>{kpis.topSkill}</p>
+                    <p className="text-2xl font-bold text-primary truncate" title={kpis.topSkill}>{kpis.topSkill}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Top Macro Ambito</p>
                     <p className="text-xl font-bold text-tertiary truncate" title={kpis.topMacro}>{kpis.topMacro}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Top Ambito Specifico</p>
                     <p className="text-xl font-bold text-secondary truncate" title={kpis.topCat}>{kpis.topCat}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Certificazioni Totali</p>
                     <div className="flex items-baseline gap-2">
                         <p className="text-2xl font-bold text-on-surface">{kpis.totalCerts}</p>

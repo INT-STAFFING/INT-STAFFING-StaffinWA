@@ -428,7 +428,7 @@ export const ResourceRequestPage: React.FC = () => {
     const renderCard = (request: EnrichedRequest) => {
         const isClosed = request.status === 'CHIUSA';
         return (
-            <div key={request.id} className="p-5 rounded-2xl shadow-md bg-surface-container-low border-l-4 border-primary flex flex-col gap-4 relative">
+            <div key={request.id} className="p-5 rounded-2xl shadow-md bg-surface-container-low flex flex-col gap-4 relative">
                 <div className="flex justify-between items-start">
                     <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -562,7 +562,7 @@ export const ResourceRequestPage: React.FC = () => {
         <div className="space-y-6">
             {/* KPI Summary Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary overflow-hidden relative">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow overflow-hidden relative">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
                              <span className="material-symbols-outlined text-lg">engineering</span> FTE per Figura
@@ -582,7 +582,7 @@ export const ResourceRequestPage: React.FC = () => {
                     )}
                 </div>
 
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-tertiary overflow-hidden relative">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow overflow-hidden relative">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-sm font-bold text-tertiary uppercase tracking-wider flex items-center gap-2">
                              <span className="material-symbols-outlined text-lg">folder_shared</span> FTE per Progetto

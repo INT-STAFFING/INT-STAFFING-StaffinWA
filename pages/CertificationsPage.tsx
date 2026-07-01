@@ -287,7 +287,7 @@ const CertificationsPage: React.FC = () => {
     );
 
     const renderCard = (skill: EnrichedCertification) => (
-        <div key={skill.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 border-l-4 border-yellow-500">
+        <div key={skill.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3">
             <div className="flex justify-between items-start">
                 <div>
                     <div className="flex items-center gap-2">
@@ -376,17 +376,17 @@ const CertificationsPage: React.FC = () => {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Tipi di Certificazione</p>
-                    <p className="text-3xl font-bold text-on-surface">{kpis.totalTypes}</p>
+                    <p className="text-3xl font-bold text-primary">{kpis.totalTypes}</p>
                 </div>
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">In Scadenza (90gg)</p>
-                    <p className="text-3xl font-bold text-on-surface">{kpis.totalExpiring}</p>
+                    <p className="text-3xl font-bold text-error">{kpis.totalExpiring}</p>
                 </div>
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-tertiary">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Area Prevalente</p>
-                    <p className="text-xl font-bold text-on-surface truncate" title={kpis.topMacroCategory}>{kpis.topMacroCategory}</p>
+                    <p className="text-xl font-bold text-tertiary truncate" title={kpis.topMacroCategory}>{kpis.topMacroCategory}</p>
                 </div>
             </div>
 

@@ -247,7 +247,7 @@ const ClientsPage: React.FC = () => {
             );
         }
         return (
-            <div key={client.id} className="p-4 rounded-lg shadow-md bg-surface-container border-l-4 border-primary">
+            <div key={client.id} className="p-4 rounded-lg shadow-md bg-surface-container">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-on-surface">{client.name}</p>
@@ -280,17 +280,17 @@ const ClientsPage: React.FC = () => {
         <div>
              {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Totale Clienti</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.totalClients}</p>
+                    <p className="text-2xl font-bold text-primary">{kpis.totalClients}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                      <p className="text-sm text-on-surface-variant">Clienti Attivi</p>
-                     <p className="text-2xl font-bold text-on-surface">{kpis.activeClients}</p>
+                     <p className="text-2xl font-bold text-tertiary">{kpis.activeClients}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                      <p className="text-sm text-on-surface-variant">Settori Coperti</p>
-                     <p className="text-2xl font-bold text-on-surface">{kpis.totalSectors}</p>
+                     <p className="text-2xl font-bold text-secondary">{kpis.totalSectors}</p>
                 </div>
             </div>
 

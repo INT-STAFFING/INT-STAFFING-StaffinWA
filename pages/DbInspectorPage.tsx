@@ -606,10 +606,13 @@ const DbInspectorPage: React.FC = () => {
                              <span className="material-symbols-outlined text-primary">lock_reset</span>
                              Importazione Bulk Password
                         </h2>
-                        <p className="text-sm text-on-surface-variant mb-6 bg-surface-container-low p-4 rounded-xl border-l-4 border-tertiary">
-                            Inserisci qui sotto l'elenco delle coppie <strong>Username, Password</strong> (una per riga, separate da virgola).
-                            <br />
-                            Le password verranno crittografate e aggiornate. Gli utenti saranno forzati al cambio password al prossimo accesso.
+                        <p className="text-sm text-on-surface-variant mb-6 bg-surface-container-low p-4 rounded-xl flex gap-2">
+                            <span className="material-symbols-outlined text-tertiary text-lg flex-shrink-0">info</span>
+                            <span>
+                                Inserisci qui sotto l'elenco delle coppie <strong>Username, Password</strong> (una per riga, separate da virgola).
+                                <br />
+                                Le password verranno crittografate e aggiornate. Gli utenti saranno forzati al cambio password al prossimo accesso.
+                            </span>
                         </p>
                         
                         <textarea 

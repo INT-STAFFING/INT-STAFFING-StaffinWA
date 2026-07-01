@@ -147,10 +147,15 @@ const CalendarPage: React.FC = () => {
     );
 
     const renderMobileCard = (event: CalendarEvent) => (
-        <div key={event.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${event.type === 'COMPANY_CLOSURE' ? 'border-tertiary' : 'border-primary'}`}>
+        <div key={event.id} className="p-4 rounded-lg shadow-md bg-surface-container">
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="font-bold text-lg text-on-surface">{event.name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-lg text-on-surface">{event.name}</p>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${event.type === 'COMPANY_CLOSURE' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-primary-container text-on-primary-container'}`}>
+                            {event.type === 'COMPANY_CLOSURE' ? 'Chiusura Aziendale' : 'Festività'}
+                        </span>
+                    </div>
                     <p className="text-sm text-on-surface-variant font-mono">{formatDateFull(event.date)}</p>
                 </div>
                 <div className="flex items-center space-x-1">
