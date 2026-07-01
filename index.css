@@ -11,7 +11,7 @@
    Palette:
      teal-900 #06414A  · teal-700 #0A5560 · yellow #FAE650
      powder  #BED6E1  · ruby     #9F3C59 · lilac  #9F95BE
-     bg-soft #FAFAF7  · bg-canvas #FFFFFF
+     bg-soft #E7EEF0 (teal-tint) · bg-canvas #FFFFFF
    ============================================================ */
 :root {
   /* Light Theme - Aligned with ThemeContext.tsx defaultTheme */
@@ -31,7 +31,7 @@
   --color-on-error: #ffffff;
   --color-error-container: #f3dbe3;
   --color-on-error-container: #5c1f33;
-  --color-background: #fafaf7;         /* bg-soft */
+  --color-background: #e7eef0;         /* teal-soft: sfondo pagina, distinto dal bianco delle card */
   --color-on-background: #06414a;
   --color-surface: #ffffff;            /* bg-canvas */
   --color-on-surface: #06414a;
@@ -42,13 +42,13 @@
   --color-shadow: #000000;
   --color-scrim: #000000;
   --color-inverse-surface: #06414a;
-  --color-inverse-on-surface: #fafaf7;
+  --color-inverse-on-surface: #e7eef0;
   --color-inverse-primary: #fae650;    /* yellow accent */
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #fafaf7;
-  --color-surface-container: #f4f4ef;
-  --color-surface-container-high: #eeede6;
-  --color-surface-container-highest: #e8e7df;
+  --color-surface-container-low: #ffffff;
+  --color-surface-container: #f7fafb;
+  --color-surface-container-high: #eef3f4;
+  --color-surface-container-highest: #e3ebed;
 
   /* Custom Colors */
   --color-yellow-container: #fae650;   /* yellow: accento attivo / "Oggi" */
