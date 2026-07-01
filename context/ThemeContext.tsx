@@ -224,11 +224,22 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return 'light';
     });
 
-    const createCssProperties = useCallback((palette: M3Palette) => {
-        return (Object.entries(palette) as [keyof M3Palette, string][]).map(([key, value]) => {
-            const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-            return `${cssVarName}: ${value};`;
-        }).join('\n');
+    // index.css è la fonte di verità per la palette "di default": :root/.dark vi
+    // dichiarano già tutti i --color-*. Qui iniettiamo SOLO gli scostamenti rispetto
+    // a defaultTheme (personalizzazioni salvate su DB): se un colore coincide con
+    // il default, non viene scritta nessuna dichiarazione per quella chiave e resta
+    // in vigore la regola di index.css. Così un aggiornamento della palette in
+    // index.css è visibile subito, senza dover tenere manualmente allineato questo
+    // duplicato JS: al più, se defaultTheme diverge da index.css, la differenza
+    // resta invisibile (nessun override) invece di sovrascrivere silenziosamente i
+    // nuovi colori con valori vecchi.
+    const createCssProperties = useCallback((palette: M3Palette, basePalette: M3Palette) => {
+        return (Object.entries(palette) as [keyof M3Palette, string][])
+            .filter(([key, value]) => value !== basePalette[key])
+            .map(([key, value]) => {
+                const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+                return `${cssVarName}: ${value};`;
+            }).join('\n');
     }, []);
 
     const injectStyles = useCallback((currentTheme: Theme) => {
@@ -241,14 +252,14 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
         styleElement.innerHTML = `
             :root {
-                ${createCssProperties(currentTheme.light)}
+                ${createCssProperties(currentTheme.light, defaultTheme.light)}
                 --toast-success-bg: ${currentTheme.toastSuccessBackground};
                 --toast-success-fg: ${currentTheme.toastSuccessForeground};
                 --toast-error-bg: ${currentTheme.toastErrorBackground};
                 --toast-error-fg: ${currentTheme.toastErrorForeground};
             }
             .dark {
-                ${createCssProperties(currentTheme.dark)}
+                ${createCssProperties(currentTheme.dark, defaultTheme.dark)}
             }
         `;
     }, [createCssProperties]);
