@@ -413,17 +413,17 @@ export const WbsAllocationPage: React.FC = () => {
                 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                         <p className="text-sm text-on-surface-variant">Totale Sforzo (Periodo)</p>
-                        <p className="text-2xl font-bold text-on-surface">{kpis.totalEffortDays.toFixed(1)} <span className="text-sm font-normal text-on-surface-variant">Giorni</span></p>
+                        <p className="text-2xl font-bold text-primary">{kpis.totalEffortDays.toFixed(1)} <span className="text-sm font-normal text-on-surface-variant">Giorni</span></p>
                     </div>
-                    <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                    <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                         <p className="text-sm text-on-surface-variant">WBS Attivi</p>
-                        <p className="text-2xl font-bold text-on-surface">{kpis.totalActiveWbs}</p>
+                        <p className="text-2xl font-bold text-tertiary">{kpis.totalActiveWbs}</p>
                     </div>
-                    <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error">
+                    <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                         <p className="text-sm text-on-surface-variant">Sforzo "No WBS"</p>
-                        <p className="text-2xl font-bold text-on-surface">{kpis.effortNoWbs.toFixed(1)} <span className="text-sm font-normal text-on-surface-variant">Giorni</span></p>
+                        <p className="text-2xl font-bold text-error">{kpis.effortNoWbs.toFixed(1)} <span className="text-sm font-normal text-on-surface-variant">Giorni</span></p>
                     </div>
                 </div>
 

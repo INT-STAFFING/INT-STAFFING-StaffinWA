@@ -404,10 +404,13 @@ export const ProjectsPage: React.FC = () => {
             );
         }
         return (
-            <div key={project.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${project.status === 'Completato' ? 'border-tertiary' : project.status === 'In corso' ? 'border-primary' : 'border-outline'}`}>
+            <div key={project.id} className="p-4 rounded-lg shadow-md bg-surface-container">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-on-surface">{project.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-lg text-on-surface">{project.name}</p>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${project.status === 'Completato' ? 'bg-tertiary-container text-on-tertiary-container' : project.status === 'In corso' ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant'}`}>{project.status}</span>
+                        </div>
                         <p className="text-sm text-on-surface-variant">{project.clientName}</p>
                     </div>
                     <div className="flex items-center space-x-1">
@@ -510,17 +513,17 @@ export const ProjectsPage: React.FC = () => {
         <div>
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Progetti Attivi</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.countActive}</p>
+                    <p className="text-2xl font-bold text-primary">{kpis.countActive}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Budget Totale</p>
-                    <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalBudget)}</p>
+                    <p className="text-2xl font-bold text-secondary">{formatCurrency(kpis.totalBudget)}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Progetti in Scadenza</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.endingSoon}</p>
+                    <p className="text-2xl font-bold text-tertiary">{kpis.endingSoon}</p>
                 </div>
             </div>
 

@@ -594,7 +594,7 @@ const MobileResourceCard: React.FC<{
 
   return (
       <>
-          <div className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-primary flex flex-col gap-3">
+          <div className="bg-surface rounded-2xl shadow p-4 mb-4 flex flex-col gap-3">
               {/* Header Card */}
               <div className="flex justify-between items-start">
                   <div>

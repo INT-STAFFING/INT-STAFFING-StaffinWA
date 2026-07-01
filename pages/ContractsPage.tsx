@@ -301,7 +301,7 @@ export const ContractsPage: React.FC = () => {
     );
 
     const renderMobileCard = (contract: EnrichedContract) => (
-         <div key={contract.id} className="p-4 rounded-lg shadow-md bg-surface-container border-l-4 border-primary">
+         <div key={contract.id} className="p-4 rounded-lg shadow-md bg-surface-container">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="font-bold text-lg text-on-surface">{contract.name}</p>
@@ -412,17 +412,17 @@ export const ContractsPage: React.FC = () => {
         <div>
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                     <p className="text-sm text-on-surface-variant">Contratti Totali</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.totalContracts}</p>
+                    <p className="text-2xl font-bold text-primary">{kpis.totalContracts}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                      <p className="text-sm text-on-surface-variant">Capienza Totale</p>
-                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalCapienza)}</p>
+                     <p className="text-2xl font-bold text-secondary">{formatCurrency(kpis.totalCapienza)}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                      <p className="text-sm text-on-surface-variant">Backlog Residuo</p>
-                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalBacklog)} <span className="text-sm font-normal opacity-70">({kpis.backlogPercentage.toFixed(0)}%)</span></p>
+                     <p className="text-2xl font-bold text-tertiary">{formatCurrency(kpis.totalBacklog)} <span className="text-sm font-normal opacity-70">({kpis.backlogPercentage.toFixed(0)}%)</span></p>
                 </div>
             </div>
 

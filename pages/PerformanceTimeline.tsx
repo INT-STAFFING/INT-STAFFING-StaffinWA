@@ -61,7 +61,7 @@ const TimelineItem: React.FC<{
                 </div>
 
                 {evalData.summary && (
-                    <div className="mb-4 text-sm text-on-surface bg-surface-container-low p-3 rounded-lg border-l-2 border-primary">
+                    <div className="mb-4 text-sm text-on-surface bg-surface-container-low p-3 rounded-lg italic">
                         {evalData.summary}
                     </div>
                 )}

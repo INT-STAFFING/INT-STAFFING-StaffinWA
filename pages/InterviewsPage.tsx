@@ -388,23 +388,23 @@ const InterviewsPage: React.FC = () => {
         <div className="space-y-6">
             {/* KPI Section */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-surface rounded-2xl p-4 shadow-sm border-l-4 border-primary">
+                <div className="bg-surface rounded-2xl p-4 shadow-sm">
                     <p className="text-xs font-bold text-on-surface-variant opacity-70">Candidati Attivi</p>
-                    <p className="text-2xl font-black text-on-surface">{kpis.active}</p>
+                    <p className="text-2xl font-black text-primary">{kpis.active}</p>
                 </div>
-                <div className="bg-surface rounded-2xl p-4 shadow-sm border-l-4 border-tertiary">
+                <div className="bg-surface rounded-2xl p-4 shadow-sm">
                     <p className="text-xs font-bold text-on-surface-variant opacity-70">Feedback Positivi</p>
-                    <p className="text-2xl font-black text-on-surface">{kpis.positive}</p>
+                    <p className="text-2xl font-black text-tertiary">{kpis.positive}</p>
                 </div>
-                <div className="bg-surface rounded-2xl p-4 shadow-sm border-l-4 border-primary-container">
+                <div className="bg-surface rounded-2xl p-4 shadow-sm">
                     <p className="text-xs font-bold text-on-surface-variant opacity-70">In Offerta / Assunti</p>
-                    <p className="text-2xl font-black text-on-surface">{kpis.hired}</p>
+                    <p className="text-2xl font-black text-secondary">{kpis.hired}</p>
                 </div>
-                <div className="bg-surface rounded-2xl p-4 shadow-sm border-l-4 border-yellow-500">
+                <div className="bg-surface rounded-2xl p-4 shadow-sm">
                     <p className="text-xs font-bold text-on-surface-variant opacity-70">StandBy</p>
-                    <p className="text-2xl font-black text-on-surface">{kpis.standby}</p>
+                    <p className="text-2xl font-black text-error">{kpis.standby}</p>
                 </div>
-                <div className="bg-surface rounded-2xl p-4 shadow-sm border-l-4 border-secondary">
+                <div className="bg-surface rounded-2xl p-4 shadow-sm">
                     <p className="text-xs font-bold text-on-surface-variant opacity-70">Ingressi Previsti</p>
                     {kpis.incoming ? (
                         <div className="mt-1">

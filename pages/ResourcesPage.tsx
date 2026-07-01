@@ -543,7 +543,7 @@ const ResourcesPage: React.FC = () => {
 
     const renderMobileCard = (resource: EnrichedResource) => {
         return (
-            <div key={resource.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${resource.resigned ? 'border-error' : 'border-primary'}`}>
+            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-surface-container">
                  <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-on-surface">{resource.name}</p>
@@ -627,27 +627,27 @@ const ResourcesPage: React.FC = () => {
                     type="button"
                     onClick={() => setFilters(prev => ({ ...prev, status: 'active' }))}
                     aria-pressed={filters.status === 'active'}
-                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary transition hover:bg-surface-container ${filters.status === 'active' ? 'ring-2 ring-primary' : ''}`}
+                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow transition hover:bg-surface-container ${filters.status === 'active' ? 'ring-2 ring-primary' : ''}`}
                 >
                     <p className="text-sm text-on-surface-variant">Risorse Attive</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.totalActive}</p>
+                    <p className="text-2xl font-bold text-primary">{kpis.totalActive}</p>
                 </button>
                 <button
                     type="button"
                     onClick={() => setFilters(prev => ({ ...prev, status: 'resigned' }))}
                     aria-pressed={filters.status === 'resigned'}
-                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error transition hover:bg-surface-container ${filters.status === 'resigned' ? 'ring-2 ring-error' : ''}`}
+                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow transition hover:bg-surface-container ${filters.status === 'resigned' ? 'ring-2 ring-error' : ''}`}
                 >
                     <p className="text-sm text-on-surface-variant">Risorse Dimesse</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.resignedCount}</p>
+                    <p className="text-2xl font-bold text-error">{kpis.resignedCount}</p>
                 </button>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                      <p className="text-sm text-on-surface-variant">Risorse in Bench</p>
-                     <p className="text-2xl font-bold text-on-surface">{kpis.benchCount}</p>
+                     <p className="text-2xl font-bold text-secondary">{kpis.benchCount}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow">
                      <p className="text-sm text-on-surface-variant">Costo Medio Giornaliero</p>
-                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.avgCost)}</p>
+                     <p className="text-2xl font-bold text-tertiary">{formatCurrency(kpis.avgCost)}</p>
                 </div>
             </div>
 

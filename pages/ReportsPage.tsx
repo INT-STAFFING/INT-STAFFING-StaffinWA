@@ -175,7 +175,7 @@ const ProjectCostsReport: React.FC = () => {
     );
 
     const renderMobileCard = (d: typeof reportData[0]) => (
-        <div key={d.id} className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${d.margin >= 0 ? 'border-tertiary' : 'border-error'} flex flex-col gap-3`}>
+        <div key={d.id} className="bg-surface rounded-2xl shadow p-4 mb-4 flex flex-col gap-3">
              <div className="flex justify-between items-start">
                 <div>
                     <h3 className="font-bold text-lg text-on-surface">{d.projectName}</h3>
@@ -419,14 +419,14 @@ const ResourceUtilizationReport: React.FC = () => {
         };
 
         return (
-            <div key={data.id} className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-secondary flex flex-col gap-3">
+            <div key={data.id} className="bg-surface rounded-2xl shadow p-4 mb-4 flex flex-col gap-3">
                 <div className="flex justify-between items-center">
                     <div>
                         <h3 className="font-bold text-lg text-on-surface">{data.resourceName}</h3>
                         <p className="text-sm text-on-surface-variant">{data.roleName}</p>
                     </div>
                     <div className="text-right">
-                        <span className="block font-bold text-lg text-on-surface">{data.utilization.toFixed(0)}%</span>
+                        <span className={`block font-bold text-lg ${data.utilization > 100 ? 'text-error' : data.utilization > 90 ? 'text-tertiary' : 'text-primary'}`}>{data.utilization.toFixed(0)}%</span>
                          <span className="text-xs text-on-surface-variant">Utilizzo</span>
                     </div>
                 </div>

@@ -239,7 +239,7 @@ const RolesPage: React.FC = () => {
              );
         }
         return (
-            <div key={role.id} className="p-4 rounded-lg shadow-md bg-surface-container border-l-4 border-primary">
+            <div key={role.id} className="p-4 rounded-lg shadow-md bg-surface-container">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-on-surface">{role.name}</p>

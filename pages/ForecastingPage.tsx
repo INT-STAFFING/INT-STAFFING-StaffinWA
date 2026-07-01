@@ -296,14 +296,8 @@ const ForecastingPage: React.FC = () => {
     // --- Mobile Components ---
     
     const MobileForecastCard: React.FC<{ data: any }> = ({ data }) => {
-        const getBorderColor = (surplus: number) => {
-            if (surplus < 0) return 'border-error';
-            if (surplus < 10) return 'border-yellow-500';
-            return 'border-primary';
-        };
-
         return (
-            <div className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${getBorderColor(data.surplusDeficit)} flex flex-col gap-3`}>
+            <div className="bg-surface rounded-2xl shadow p-4 mb-4 flex flex-col gap-3">
                  <div className="flex justify-between items-center">
                     <div>
                         <h3 className="font-bold text-lg text-on-surface capitalize">{data.monthName}</h3>
