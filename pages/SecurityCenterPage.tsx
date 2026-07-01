@@ -28,7 +28,7 @@ const SecurityCenterPage: React.FC = () => {
             <div className="lg:w-80 flex-shrink-0 space-y-3">
                 <div className="p-2 mb-6">
                     <h1 className="text-3xl font-black text-primary tracking-tighter italic">SECURITY<span className="text-on-surface font-normal">CENTER</span></h1>
-                    <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest mt-1">Control Panel v2.1</p>
+                    <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-wide mt-1">Control Panel v2.1</p>
                 </div>
 
                 {pillars.map(p => (
@@ -46,7 +46,7 @@ const SecurityCenterPage: React.FC = () => {
                         </span>
                         <div>
                             <p className="text-sm leading-none mb-1">{p.label}</p>
-                            <p className={`text-[10px] font-normal uppercase tracking-widest opacity-60 ${activePillar === p.id ? 'text-on-primary' : ''}`}>
+                            <p className={`text-[10px] font-normal uppercase tracking-wide opacity-60 ${activePillar === p.id ? 'text-on-primary' : ''}`}>
                                 {p.desc}
                             </p>
                         </div>
@@ -55,7 +55,7 @@ const SecurityCenterPage: React.FC = () => {
 
                 <div className="mt-12 p-6 bg-error-container/10 border border-error/10 rounded-[2.5rem] relative overflow-hidden">
                     <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-7xl text-error/5 rotate-12">lock_open</span>
-                    <p className="text-[10px] font-black text-error uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-error uppercase tracking-wide mb-2 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-error animate-pulse"></span> Safety Lock Active
                     </p>
                     <p className="text-[10px] text-on-surface-variant leading-relaxed font-bold">

@@ -51,35 +51,37 @@ export interface PdfExportConfig {
 
 // --- Palette colori ---
 
-/** Colori MD3-inspired per i grafici */
+/** Colori della palette Intellera (teal/ruby/lilac) per i grafici QuickChart.io.
+ * QuickChart renderizza lato server e non ha accesso alle CSS var dell'app,
+ * quindi qui servono valori esadecimali letterali coerenti col brand. */
 export const CHART_COLORS = {
-  primary: '#6750A4',
-  secondary: '#625B71',
-  tertiary: '#7D5260',
-  error: '#B3261E',
-  blue: '#1565C0',
-  green: '#2E7D32',
-  orange: '#E65100',
-  teal: '#00695C',
-  amber: '#F57F17',
-  purple: '#4A148C',
-  indigo: '#283593',
-  pink: '#880E4F',
+  primary: '#06414a',   // teal-900
+  secondary: '#0a5560', // teal-700
+  tertiary: '#9f95be',  // lilac
+  error: '#9f3c59',     // ruby
+  blue: '#14747f',      // teal (tinta media)
+  green: '#5c7378',     // ink-65 (grigio-teal)
+  orange: '#c9a227',    // oro (dall'accento giallo Intellera, scurito per leggibilità)
+  teal: '#8aa9b3',      // powder-teal
+  amber: '#bd6a82',     // ruby chiaro
+  purple: '#4a4063',    // lilac scuro
+  indigo: '#6f6690',    // lilac-grigio
+  pink: '#7a2c44',      // ruby scuro
 };
 
 export const CHART_PALETTE = [
-  '#6750A4',
-  '#1565C0',
-  '#2E7D32',
-  '#E65100',
-  '#00695C',
-  '#F57F17',
-  '#4A148C',
-  '#880E4F',
-  '#283593',
-  '#B3261E',
-  '#625B71',
-  '#7D5260',
+  '#06414a', // teal-900
+  '#9f3c59', // ruby
+  '#9f95be', // lilac
+  '#0a5560', // teal-700
+  '#c9a227', // oro
+  '#5c7378', // ink-65
+  '#7a2c44', // ruby scuro
+  '#4a4063', // lilac scuro
+  '#14747f', // teal medio
+  '#bd6a82', // ruby chiaro
+  '#6f6690', // lilac-grigio
+  '#8aa9b3', // powder-teal
 ];
 
 export const CHART_PALETTE_ALPHA = CHART_PALETTE.map((c) => c + 'CC');

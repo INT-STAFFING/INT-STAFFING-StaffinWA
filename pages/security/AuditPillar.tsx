@@ -272,7 +272,7 @@ export const AuditPillar: React.FC = () => {
                     ) : (
                         groupedLogs.map(([dateKey, groupLogs]) => (
                             <div key={dateKey} className="mb-8">
-                                <h4 className="text-sm font-bold text-primary uppercase tracking-widest mb-4 sticky top-0 bg-surface/95 backdrop-blur py-2 z-10 border-b border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary uppercase tracking-wide mb-4 sticky top-0 bg-surface/95 backdrop-blur py-2 z-10 border-b border-outline-variant">
                                     {formatDateHeader(dateKey)}
                                 </h4>
                                 <div className="border-l-2 border-outline-variant ml-2 pl-6 pt-2">

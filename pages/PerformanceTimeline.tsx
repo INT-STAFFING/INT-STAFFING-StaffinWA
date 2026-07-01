@@ -240,7 +240,7 @@ export const PerformanceTimelinePage: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-20">
             {/* Header & Selection */}
-            <div className="bg-surface rounded-3xl p-6 shadow-sm border border-outline-variant flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-surface rounded-2xl p-6 shadow-sm border border-outline-variant flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-on-surface flex items-center gap-3">
                         <span className="material-symbols-outlined text-4xl text-primary">history_edu</span>
@@ -279,11 +279,11 @@ export const PerformanceTimelinePage: React.FC = () => {
                             
                             <div className="grid grid-cols-2 gap-2 text-left bg-surface-container-low p-4 rounded-xl mb-4">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-on-surface-variant">Seniority</p>
+                                    <p className="text-[10px] font-bold uppercase text-on-surface-variant">Seniority</p>
                                     <p className="font-medium text-primary">{activeResource?.seniorityCode || 'N/A'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase text-on-surface-variant">Talent</p>
+                                    <p className="text-[10px] font-bold uppercase text-on-surface-variant">Talent</p>
                                     <p className="font-medium text-primary">{activeResource?.isTalent ? 'Sì ⭐' : 'No'}</p>
                                 </div>
                             </div>
@@ -340,7 +340,7 @@ export const PerformanceTimelinePage: React.FC = () => {
                     <form onSubmit={handleSave} className="space-y-6">
                         <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Valutatore *</label>
+                                <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Valutatore *</label>
                                 <SearchableSelect 
                                     name="evaluatorId" 
                                     value={editingEval.evaluatorId || ''} 
@@ -351,7 +351,7 @@ export const PerformanceTimelinePage: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Anno Fiscale *</label>
+                                <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Anno Fiscale *</label>
                                 <input 
                                     type="number" 
                                     value={editingEval.fiscalYear} 
@@ -362,7 +362,7 @@ export const PerformanceTimelinePage: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Stato</label>
+                                <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Stato</label>
                                 <select 
                                     value={editingEval.status} 
                                     onChange={e => setEditingEval({...editingEval, status: e.target.value as any})}
@@ -372,7 +372,7 @@ export const PerformanceTimelinePage: React.FC = () => {
                                 </select>
                             </div>
                             <div className="col-span-2">
-                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Sommario / Feedback Generale</label>
+                                <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Sommario / Feedback Generale</label>
                                 <textarea 
                                     value={editingEval.summary || ''} 
                                     onChange={e => setEditingEval({...editingEval, summary: e.target.value})}
@@ -381,7 +381,7 @@ export const PerformanceTimelinePage: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Rating Complessivo (0-100)</label>
+                                <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Rating Complessivo (0-100)</label>
                                 <input 
                                     type="number" 
                                     value={editingEval.overallRating || 0} 

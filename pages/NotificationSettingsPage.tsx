@@ -880,7 +880,7 @@ const NotificationSettingsPage: React.FC = () => {
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start gap-4 bg-surface p-6 rounded-3xl shadow-sm border border-outline-variant">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-4 bg-surface p-6 rounded-2xl shadow-sm border border-outline-variant">
                 <div>
                     <h1 className="text-2xl font-bold text-on-surface flex items-center gap-2">
                         <span className="material-symbols-outlined text-tertiary">hub</span>

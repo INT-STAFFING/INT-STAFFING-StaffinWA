@@ -567,20 +567,20 @@ const LeavePage: React.FC = () => {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div onClick={() => handleFilterClick('PENDING')} className={`p-4 rounded-3xl border transition-all cursor-pointer ${filters.status === 'PENDING' ? 'bg-yellow-container border-yellow-500 scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
-                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">In Attesa</p>
+                <div onClick={() => handleFilterClick('PENDING')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status === 'PENDING' ? 'bg-yellow-container border-yellow-500 scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">In Attesa</p>
                     <p className="text-3xl font-black text-on-surface">{kpis.pending}</p>
                 </div>
-                <div onClick={() => handleFilterClick('APPROVED')} className={`p-4 rounded-3xl border transition-all cursor-pointer ${filters.status === 'APPROVED' ? 'bg-tertiary-container border-tertiary scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
-                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Approvate</p>
+                <div onClick={() => handleFilterClick('APPROVED')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status === 'APPROVED' ? 'bg-tertiary-container border-tertiary scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">Approvate</p>
                     <p className="text-3xl font-black text-on-surface">{kpis.approved}</p>
                 </div>
-                <div className="p-4 bg-primary-container/20 rounded-3xl border border-primary/20">
-                    <p className="text-xs font-bold text-primary uppercase tracking-widest">Assenti Oggi</p>
+                <div className="p-4 bg-primary-container/20 rounded-2xl border border-primary/20">
+                    <p className="text-xs font-bold text-primary uppercase tracking-wide">Assenti Oggi</p>
                     <p className="text-3xl font-black text-primary">{kpis.onLeaveToday}</p>
                 </div>
-                <div onClick={() => handleFilterClick('REJECTED')} className={`p-4 rounded-3xl border transition-all cursor-pointer ${filters.status === 'REJECTED' ? 'bg-error-container border-error scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
-                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Rifiutate</p>
+                <div onClick={() => handleFilterClick('REJECTED')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status === 'REJECTED' ? 'bg-error-container border-error scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">Rifiutate</p>
                     <p className="text-3xl font-black text-on-surface">{kpis.rejected}</p>
                 </div>
             </div>
@@ -592,13 +592,13 @@ const LeavePage: React.FC = () => {
                             <h2 className="text-xl font-bold capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
                             <div className="flex gap-1">
                                 <button aria-label="Mese precedente" onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
-                                <button onClick={handleToday} className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-full border border-outline hover:bg-surface-container">Oggi</button>
+                                <button onClick={handleToday} className="px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-full border border-outline hover:bg-surface-container">Oggi</button>
                                 <button aria-label="Mese successivo" onClick={handleNextMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_right</span></button>
                             </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-7 gap-px bg-outline-variant border-b border-outline-variant">
-                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(d => <div key={d} className="bg-surface-container-high py-2 text-center text-[10px] font-black uppercase text-on-surface-variant tracking-widest">{d}</div>)}
+                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(d => <div key={d} className="bg-surface-container-high py-2 text-center text-[10px] font-bold uppercase text-on-surface-variant tracking-wide">{d}</div>)}
                     </div>
                     <div className="grid grid-cols-7 auto-rows-fr flex-grow bg-outline-variant">
                         {calendarGrid.map((day, idx) => (
@@ -654,9 +654,9 @@ const LeavePage: React.FC = () => {
                 // FIX: Check for 'id' property existence using 'in' operator to handle union type correctly
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={isExistingRequest ? "Modifica Richiesta" : "Nuova Richiesta Assenza"}>
                     <form onSubmit={handleSave} className="space-y-6">
-                        <div className="bg-surface-container-low p-4 rounded-3xl border border-outline-variant space-y-4">
+                        <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Risorsa Richiedente</label>
+                                <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-2">Risorsa Richiedente</label>
                                 <SearchableSelect 
                                     name="resourceId" 
                                     value={editingRequest.resourceId} 
@@ -668,7 +668,7 @@ const LeavePage: React.FC = () => {
                                 {errors.resourceId && <p className="text-xs text-error mt-1">{errors.resourceId}</p>}
                             </div>
                             <div>
-                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Tipologia Assenza</label>
+                                <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-2">Tipologia Assenza</label>
                                 <SearchableSelect 
                                     name="typeId" 
                                     value={editingRequest.typeId} 
@@ -681,12 +681,12 @@ const LeavePage: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Data Inizio</label>
+                                    <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-2">Data Inizio</label>
                                     <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className={`form-input ${errors.startDate ? 'border-error' : ''}`} />
                                     {errors.startDate && <p className="text-xs text-error mt-1">{errors.startDate}</p>}
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Data Fine</label>
+                                    <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-2">Data Fine</label>
                                     <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className={`form-input ${errors.endDate ? 'border-error' : ''}`} />
                                     {errors.endDate && <p className="text-xs text-error mt-1">{errors.endDate}</p>}
                                 </div>
@@ -697,9 +697,9 @@ const LeavePage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-surface-container-low p-4 rounded-3xl border border-outline-variant space-y-4">
+                        <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Richiedi Approvazione a</label>
+                                <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-2">Richiedi Approvazione a</label>
                                 <MultiSelectDropdown 
                                     name="approverIds" 
                                     selectedValues={editingRequest.approverIds || []} 
@@ -710,7 +710,7 @@ const LeavePage: React.FC = () => {
                                 <p className="mt-2 text-[10px] text-on-surface-variant leading-tight">Verrà inviata una notifica a tutti gli approvatori selezionati. È necessaria una sola approvazione.</p>
                             </div>
                             <div>
-                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Note / Motivazione</label>
+                                <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-2">Note / Motivazione</label>
                                 <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea h-24" placeholder="Opzionale..." />
                             </div>
                         </div>

@@ -229,8 +229,8 @@ export const HierarchyPillar: React.FC = () => {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <span className="font-bold text-sm truncate">{user.username}</span>
-                                <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{user.role}</span>
-                                {!user.isActive && <span className="text-[9px] font-black text-error uppercase">DISAB.</span>}
+                                <span className="text-[9px] font-bold uppercase tracking-wide opacity-70">{user.role}</span>
+                                {!user.isActive && <span className="text-[9px] font-bold text-error uppercase">DISAB.</span>}
                                 {hasAutoManagers && (
                                     <span className="text-[9px] font-bold text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded" title="Manager auto-derivati da assegnazioni progetto">AUTO</span>
                                 )}
@@ -288,7 +288,7 @@ export const HierarchyPillar: React.FC = () => {
 
     if (error) {
         return (
-            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+            <div className="p-8 text-center bg-error-container/10 rounded-2xl border border-error/20">
                 <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
                 <p className="text-on-surface font-bold">Errore nel caricamento della gerarchia</p>
                 <p className="text-xs text-on-surface-variant mt-1">{error}</p>
@@ -328,7 +328,7 @@ export const HierarchyPillar: React.FC = () => {
             </div>
 
             {orphans.length > 0 && (
-                <div className="mt-8 p-5 bg-yellow-container/10 border border-yellow-container/30 rounded-3xl">
+                <div className="mt-8 p-5 bg-yellow-container/10 border border-yellow-container/30 rounded-2xl">
                     <div className="flex items-center gap-2 mb-3">
                         <span className="material-symbols-outlined text-yellow-700 text-lg">warning</span>
                         <h3 className="text-sm font-bold text-on-surface">Utenti con manager non validi ({orphans.length})</h3>
@@ -347,19 +347,19 @@ export const HierarchyPillar: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">
                     <p className="text-2xl font-black text-primary">{users?.length || 0}</p>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Utenti Totali</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">Utenti Totali</p>
                 </div>
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">
                     <p className="text-2xl font-black text-tertiary">{roots.length}</p>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Nodi Root</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">Nodi Root</p>
                 </div>
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">
                     <p className="text-2xl font-black text-secondary">{usersWithReports}</p>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Con Riporti</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">Con Riporti</p>
                 </div>
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">
                     <p className="text-2xl font-black text-error">{orphans.length}</p>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Orfani</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">Orfani</p>
                 </div>
             </div>
         </div>

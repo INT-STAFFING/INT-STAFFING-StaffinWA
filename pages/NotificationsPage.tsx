@@ -90,7 +90,7 @@ const NotificationsPage: React.FC = () => {
             )}
 
             {sortedNotifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-3xl border border-dashed border-outline-variant text-on-surface-variant opacity-60">
+                <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-2xl border border-dashed border-outline-variant text-on-surface-variant opacity-60">
                     <span className="material-symbols-outlined text-6xl mb-4">notifications_off</span>
                     <p className="text-lg font-medium">Non ci sono notifiche {filter === 'unread' ? 'da leggere' : ''}.</p>
                 </div>

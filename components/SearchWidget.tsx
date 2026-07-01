@@ -116,7 +116,7 @@ const SearchWidget: React.FC = () => {
                         className="flex-1 bg-transparent border-none focus:ring-0 text-lg text-on-surface placeholder:text-on-surface-variant"
                     />
                     <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-surface-container rounded-lg border border-outline-variant">
-                        <span className="text-[10px] font-black text-on-surface-variant uppercase">ESC</span>
+                        <span className="text-[10px] font-bold text-on-surface-variant uppercase">ESC</span>
                     </div>
                 </div>
 
@@ -124,7 +124,7 @@ const SearchWidget: React.FC = () => {
                 <div className="flex-1 overflow-y-auto max-h-[50vh] custom-scrollbar">
                     {query.length < 2 ? (
                         <div className="p-4">
-                            <p className="px-4 py-2 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Azioni Rapide</p>
+                            <p className="px-4 py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">Azioni Rapide</p>
                             <div className="space-y-1">
                                 {(quickActions || []).map((action) => (
                                     <button
@@ -163,7 +163,7 @@ const SearchWidget: React.FC = () => {
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
                                             <span className="font-bold truncate">{result.title}</span>
-                                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${selectedIndex === idx ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-variant text-on-surface-variant'}`}>
+                                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${selectedIndex === idx ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-variant text-on-surface-variant'}`}>
                                                 {result.type}
                                             </span>
                                         </div>
@@ -186,7 +186,7 @@ const SearchWidget: React.FC = () => {
                 </div>
 
                 {/* Footer Guide */}
-                <div className="px-6 py-3 bg-surface-container-high border-t border-outline-variant flex justify-between items-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                <div className="px-6 py-3 bg-surface-container-high border-t border-outline-variant flex justify-between items-center text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">
                     <div className="flex gap-4">
                         <span className="flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">arrow_upward</span>

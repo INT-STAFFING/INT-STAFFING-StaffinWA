@@ -23,13 +23,16 @@ export const DASHBOARD_COLORS = {
     negative: 'text-error',
   },
   link: 'text-primary hover:underline',
+  // Colori letterali della palette Intellera (teal/lilac/ruby), usati sia dai grafici
+  // D3 in pagina sia dalle immagini generate da quickchart.io per l'export PDF: questi
+  // ultimi vengono renderizzati da un servizio esterno che non ha accesso alle CSS var.
   chart: {
-    primary: '#006493',
-    secondary: '#50606e',
-    tertiary: '#64597b',
-    threshold: '#ba1a1a',
-    fixed: '#e67c73', // Light red for fixed price
-    tm: '#5b9bd5',    // Light blue for T&M
+    primary: '#06414a',   // teal-900
+    secondary: '#0a5560', // teal-700
+    tertiary: '#9f95be',  // lilac
+    threshold: '#9f3c59', // ruby (soglia critica)
+    fixed: '#9f95be',     // lilac per "Fixed Price"
+    tm: '#0a5560',        // teal-700 per "Time & Material"
   },
 };
 

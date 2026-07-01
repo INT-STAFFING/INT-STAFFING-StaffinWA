@@ -21,7 +21,7 @@ export const IdentityPillar: React.FC = () => {
 
     if (error) {
         return (
-            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+            <div className="p-8 text-center bg-error-container/10 rounded-2xl border border-error/20">
                 <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
                 <p className="text-on-surface font-bold">Errore nel caricamento degli utenti</p>
                 <p className="text-xs text-on-surface-variant mt-1">{error}</p>
@@ -178,7 +178,7 @@ export const IdentityPillar: React.FC = () => {
         {
             header: 'Ruolo',
             sortKey: 'role',
-            cell: u => <span className="text-xs font-bold text-primary uppercase tracking-widest">{u.role}</span>
+            cell: u => <span className="text-xs font-bold text-primary uppercase tracking-wide">{u.role}</span>
         },
         {
             header: 'Stato',
@@ -227,7 +227,7 @@ export const IdentityPillar: React.FC = () => {
     );
 
     const renderMobileCard = (u: AppUser) => (
-        <div key={u.id} className={`p-5 rounded-3xl border shadow-sm hover:shadow-md transition-all group mb-4 ${selectedIds.has(u.id) ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-outline-variant'}`}>
+        <div key={u.id} className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-all group mb-4 ${selectedIds.has(u.id) ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-outline-variant'}`}>
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                     <input
@@ -241,7 +241,7 @@ export const IdentityPillar: React.FC = () => {
                     </div>
                     <div>
                         <p className="font-bold text-on-surface text-lg">{u.username}</p>
-                        <p className="text-xs text-primary font-bold uppercase tracking-widest">{u.role}</p>
+                        <p className="text-xs text-primary font-bold uppercase tracking-wide">{u.role}</p>
                     </div>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-tighter ${u.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>

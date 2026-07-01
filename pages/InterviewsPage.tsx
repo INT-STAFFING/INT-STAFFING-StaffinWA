@@ -453,19 +453,19 @@ const InterviewsPage: React.FC = () => {
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Nome *</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Nome *</label>
                                     <input type="text" required name="candidateName" value={editingInterview.candidateName} onChange={(e) => setEditingInterview({...editingInterview, candidateName: e.target.value})} className="form-input" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Cognome *</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Cognome *</label>
                                     <input type="text" required name="candidateSurname" value={editingInterview.candidateSurname} onChange={(e) => setEditingInterview({...editingInterview, candidateSurname: e.target.value})} className="form-input" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Data di Nascita</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Data di Nascita</label>
                                     <input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={(e) => setEditingInterview({...editingInterview, birthDate: e.target.value})} className="form-input" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Data Colloquio *</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Data Colloquio *</label>
                                     <input type="date" required name="interviewDate" value={editingInterview.interviewDate || ''} onChange={(e) => setEditingInterview({...editingInterview, interviewDate: e.target.value})} className="form-input" />
                                 </div>
                             </div>
@@ -477,15 +477,15 @@ const InterviewsPage: React.FC = () => {
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Richiesta Correlata</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Richiesta Correlata</label>
                                     <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={(_, v) => setEditingInterview({...editingInterview, resourceRequestId: v})} options={resourceRequests.map(r => ({ value: r.id!, label: `${r.requestCode} - ${roles.find(ro => ro.id === r.roleId)?.name}` }))} placeholder="Seleziona richiesta aperta (opzionale)" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Ruolo Proposto</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Ruolo Proposto</label>
                                     <SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={(_, v) => setEditingInterview({...editingInterview, roleId: v})} options={roles.map(r => ({ value: r.id!, label: r.name }))} placeholder="Scegli ruolo..." />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Function Target</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Function Target</label>
                                     <SearchableSelect name="function" value={editingInterview.function || ''} onChange={(_, v) => setEditingInterview({...editingInterview, function: v})} options={functions.map(h => ({ value: h.value, label: h.value }))} placeholder="Scegli Function..." />
                                 </div>
                             </div>
@@ -517,7 +517,7 @@ const InterviewsPage: React.FC = () => {
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Feedback Colloquio</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Feedback Colloquio</label>
                                     <select name="feedback" value={editingInterview.feedback || ''} onChange={(e) => setEditingInterview({...editingInterview, feedback: e.target.value as InterviewFeedback})} className="form-select">
                                         <option value="">Nessuno</option>
                                         <option value="Positivo">Positivo</option>
@@ -526,7 +526,7 @@ const InterviewsPage: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Stato Assunzione</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Stato Assunzione</label>
                                     <select name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={(e) => setEditingInterview({...editingInterview, hiringStatus: e.target.value as InterviewHiringStatus})} className="form-select">
                                         <option value="">In corso</option>
                                         <option value="SI">SI (Assunto)</option>
@@ -538,7 +538,7 @@ const InterviewsPage: React.FC = () => {
                                 {editingInterview.hiringStatus === 'SI' && (
                                     <div className="animate-fade-in md:col-span-2 space-y-3">
                                         <div>
-                                            <label className="block text-[10px] font-black text-tertiary uppercase mb-1">Data Ingresso Prevista</label>
+                                            <label className="block text-[10px] font-bold text-tertiary uppercase mb-1">Data Ingresso Prevista</label>
                                             <input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={(e) => setEditingInterview({...editingInterview, entryDate: e.target.value})} className="form-input border-tertiary/30" />
                                         </div>
                                         <button
@@ -564,15 +564,15 @@ const InterviewsPage: React.FC = () => {
                                     </div>
                                 )}
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Intervistatori</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Intervistatori</label>
                                     <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={(_, v) => setEditingInterview({...editingInterview, interviewersIds: v})} options={resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name }))} placeholder="Chi ha fatto il colloquio?" />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Note & Sintesi CV</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Note & Sintesi CV</label>
                                     <textarea name="notes" value={editingInterview.notes || ''} onChange={(e) => setEditingInterview({...editingInterview, notes: e.target.value})} className="form-textarea" rows={3} placeholder="Sintesi valutazione, preavviso..."></textarea>
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black text-on-surface-variant uppercase mb-1">Stato Processo *</label>
+                                    <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Stato Processo *</label>
                                     <select name="status" required value={editingInterview.status} onChange={(e) => setEditingInterview({...editingInterview, status: e.target.value as InterviewStatus})} className="form-select">
                                         <option value="Aperto">Aperto</option>
                                         <option value="StandBy">StandBy</option>
