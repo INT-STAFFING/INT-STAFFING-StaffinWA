@@ -79,7 +79,7 @@ const OrgNodeCard: React.FC<{
 
                 {/* Role badge */}
                 <div className="flex items-center justify-between gap-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${style.badge}`}>
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${style.badge}`}>
                         {user.role}
                     </span>
                     {node.isAutoPlaced && (
@@ -519,7 +519,7 @@ const OrgChartPage: React.FC = () => {
             {/* Org chart canvas */}
             <div
                 ref={containerRef}
-                className="overflow-auto bg-surface-container-low rounded-3xl border border-outline-variant p-8 min-h-[400px]"
+                className="overflow-auto bg-surface-container-low rounded-2xl border border-outline-variant p-8 min-h-[400px]"
                 style={{ maxHeight: 'calc(100vh - 320px)' }}
             >
                 <div
@@ -563,7 +563,7 @@ const OrgChartPage: React.FC = () => {
 
             {/* Legend */}
             <div className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant">
-                <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-3">Legenda Ruoli</p>
+                <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide mb-3">Legenda Ruoli</p>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(ROLE_STYLES).map(([role, style]) => (
                         <div key={role} className="flex items-center gap-1.5">

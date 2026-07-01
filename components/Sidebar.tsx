@@ -221,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 onCloseMobile={() => setIsOpen(false)}
                 headerSlot={
                     <div className="flex items-center justify-between w-full px-4">
-                        <h1 className="text-2xl font-bold text-primary tracking-widest">PLANNER</h1>
+                        <h1 className="text-2xl font-bold text-primary tracking-wide">PLANNER</h1>
                         <button 
                             onClick={() => setSearchOpen(true)}
                             className="w-10 h-10 flex items-center justify-center rounded-2xl bg-surface-container-high text-primary hover:bg-primary hover:text-on-primary transition-all shadow-sm group"

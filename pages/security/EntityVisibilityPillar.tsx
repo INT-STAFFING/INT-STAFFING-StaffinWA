@@ -109,7 +109,7 @@ export const EntityVisibilityPillar: React.FC = () => {
     // Early return DOPO tutti gli hook
     if (error) {
         return (
-            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+            <div className="p-8 text-center bg-error-container/10 rounded-2xl border border-error/20">
                 <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
                 <p className="text-on-surface font-bold">Errore nel caricamento della visibilità entità</p>
                 <p className="text-xs text-on-surface-variant mt-1">{error}</p>
@@ -211,19 +211,19 @@ export const EntityVisibilityPillar: React.FC = () => {
                     {Object.entries(entityGroups).map(([group, entities]) => (
                         <div key={group} className="border border-outline-variant rounded-[2rem] overflow-hidden bg-surface shadow-inner">
                             <div className="bg-surface-container-high px-6 py-3 border-b border-outline-variant">
-                                <h4 className="font-black uppercase text-[10px] tracking-widest text-on-surface-variant">{group}</h4>
+                                <h4 className="font-bold uppercase text-[10px] tracking-wide text-on-surface-variant">{group}</h4>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full text-sm">
                                     <thead className="bg-surface-container">
                                         <tr className="border-b border-outline-variant">
-                                            <th className="px-6 py-3 text-left font-black uppercase text-[10px] tracking-widest text-on-surface-variant">Entità</th>
+                                            <th className="px-6 py-3 text-left font-bold uppercase text-[10px] tracking-wide text-on-surface-variant">Entità</th>
                                             {ENTITY_VISIBILITY_ROLES.map(role => (
-                                                <th key={role} className="px-2 py-3 text-center font-black uppercase text-[10px] tracking-widest text-on-surface-variant w-20" title={role}>
+                                                <th key={role} className="px-2 py-3 text-center font-bold uppercase text-[10px] tracking-wide text-on-surface-variant w-20" title={role}>
                                                     {ROLE_ABBR[role] ?? role.substring(0, 8)}
                                                 </th>
                                             ))}
-                                            <th className="px-4 py-3 text-center font-black uppercase text-[10px] tracking-widest bg-primary/5 text-primary">Admin</th>
+                                            <th className="px-4 py-3 text-center font-bold uppercase text-[10px] tracking-wide bg-primary/5 text-primary">Admin</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-outline-variant">
@@ -266,7 +266,7 @@ export const EntityVisibilityPillar: React.FC = () => {
             )}
 
             <div className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 flex items-center gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant mb-2 flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">info</span>
                     Note sulla sicurezza
                 </p>

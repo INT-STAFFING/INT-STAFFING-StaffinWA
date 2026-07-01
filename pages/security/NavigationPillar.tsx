@@ -75,8 +75,8 @@ export const NavigationPillar: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {ROLES.map(role => (
-                        <div key={role} className="bg-surface-container-low p-5 rounded-3xl border border-outline-variant shadow-sm">
-                            <label className="block text-[10px] font-black text-primary mb-3 uppercase tracking-widest">Home per {role}</label>
+                        <div key={role} className="bg-surface-container-low p-5 rounded-2xl border border-outline-variant shadow-sm">
+                            <label className="block text-[10px] font-bold text-primary mb-3 uppercase tracking-wide">Home per {role}</label>
                             <select
                                 value={roleHomePages[role] || '/staffing'}
                                 onChange={e => updateRoleHomePages({...roleHomePages, [role]: e.target.value})}
@@ -127,7 +127,7 @@ export const NavigationPillar: React.FC = () => {
                             <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                 {/* Label Input */}
                                 <div className="md:col-span-5">
-                                     <label className="text-[10px] font-bold text-primary uppercase tracking-widest block mb-1">Etichetta</label>
+                                     <label className="text-[10px] font-bold text-primary uppercase tracking-wide block mb-1">Etichetta</label>
                                      <input
                                         type="text"
                                         value={item.label}
@@ -142,7 +142,7 @@ export const NavigationPillar: React.FC = () => {
 
                                 {/* Section Selector */}
                                 <div className="md:col-span-4">
-                                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">Sezione</label>
+                                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide block mb-1">Sezione</label>
                                     <select
                                         value={item.section || ''}
                                         onChange={(e) => handleSectionChange(idx, e.target.value)}

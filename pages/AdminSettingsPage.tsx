@@ -37,7 +37,7 @@ const DataLoadSection: React.FC = () => {
     };
 
     return (
-        <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
+        <div className="bg-surface rounded-2xl shadow-sm p-8 border border-outline-variant">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-on-surface">Caricamento Dati & Performance</h2>
@@ -56,7 +56,7 @@ const DataLoadSection: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant">
-                    <label className="block text-xs font-black text-primary uppercase tracking-widest mb-3">Range Storico (Mesi Precedenti)</label>
+                    <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-3">Range Storico (Mesi Precedenti)</label>
                     <input 
                         type="number" min="0" max="24"
                         value={localSettings.monthsBefore} 
@@ -66,7 +66,7 @@ const DataLoadSection: React.FC = () => {
                     <p className="mt-3 text-[10px] text-on-surface-variant leading-relaxed">Aumentare questo valore rallenta il caricamento iniziale ma fornisce report storici più profondi.</p>
                 </div>
                 <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant">
-                    <label className="block text-xs font-black text-primary uppercase tracking-widest mb-3">Range Futuro (Mesi Successivi)</label>
+                    <label className="block text-xs font-bold text-primary uppercase tracking-wide mb-3">Range Futuro (Mesi Successivi)</label>
                     <input 
                         type="number" min="1" max="36"
                         value={localSettings.monthsAfter} 
@@ -258,7 +258,7 @@ const SearchConfigSection: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
+            <div className="bg-surface rounded-2xl shadow-sm p-8 border border-outline-variant">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <div>
                         <h2 className="text-xl font-bold text-on-surface">Configurazione Ricerca Rapida</h2>
@@ -282,7 +282,7 @@ const SearchConfigSection: React.FC = () => {
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     {localActions.map((action, index) => (
-                        <div key={index} className="p-6 bg-surface-container-low rounded-3xl border border-outline-variant flex items-center gap-4 group hover:bg-surface-container transition-colors">
+                        <div key={index} className="p-6 bg-surface-container-low rounded-2xl border border-outline-variant flex items-center gap-4 group hover:bg-surface-container transition-colors">
                             <div className="flex flex-col gap-1">
                                 <button onClick={() => handleMove(index, -1)} disabled={index === 0} className="p-1 hover:bg-surface-container rounded-full disabled:opacity-20 text-on-surface-variant">
                                     <span className="material-symbols-outlined text-sm">keyboard_arrow_up</span>

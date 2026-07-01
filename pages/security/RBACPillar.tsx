@@ -17,7 +17,7 @@ export const RBACPillar: React.FC = () => {
 
     if (error) {
         return (
-            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+            <div className="p-8 text-center bg-error-container/10 rounded-2xl border border-error/20">
                 <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
                 <p className="text-on-surface font-bold">Errore nel caricamento dei permessi</p>
                 <p className="text-xs text-on-surface-variant mt-1">{error}</p>
@@ -101,14 +101,14 @@ export const RBACPillar: React.FC = () => {
                     <table className="min-w-full text-sm">
                         <thead className="bg-surface-container-high">
                             <tr className="border-b border-outline-variant">
-                                <th className="px-6 py-5 text-left font-black uppercase text-[10px] tracking-widest text-on-surface-variant">Modulo / Percorso</th>
-                                <th className="px-2 py-5 text-center font-black uppercase text-[10px] tracking-widest text-error">Solo Admin</th>
+                                <th className="px-6 py-5 text-left font-bold uppercase text-[10px] tracking-wide text-on-surface-variant">Modulo / Percorso</th>
+                                <th className="px-2 py-5 text-center font-bold uppercase text-[10px] tracking-wide text-error">Solo Admin</th>
                                 {ROLES.map(role => (
-                                    <th key={role} className="px-2 py-5 text-center font-black uppercase text-[10px] tracking-widest text-on-surface-variant w-20" title={role}>
+                                    <th key={role} className="px-2 py-5 text-center font-bold uppercase text-[10px] tracking-wide text-on-surface-variant w-20" title={role}>
                                         {ROLE_ABBR[role] ?? role.substring(0, 8)}
                                     </th>
                                 ))}
-                                <th className="px-4 py-5 text-center font-black uppercase text-[10px] tracking-widest bg-primary/5 text-primary">Admin</th>
+                                <th className="px-4 py-5 text-center font-bold uppercase text-[10px] tracking-wide bg-primary/5 text-primary">Admin</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-outline-variant">
@@ -160,7 +160,7 @@ export const RBACPillar: React.FC = () => {
             </div>
 
             <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 flex items-center gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant mb-2 flex items-center gap-2">
                     <span className="material-symbols-outlined text-base" aria-hidden="true">info</span> Note
                 </p>
                 <ul className="text-xs text-on-surface-variant space-y-1">

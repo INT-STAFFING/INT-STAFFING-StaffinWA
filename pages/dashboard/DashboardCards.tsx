@@ -937,8 +937,8 @@ export const CostForecastCard: React.FC<CostForecastCardProps> = ({ data }) => {
                         chartUrl={data.length > 0 ? (() => {
                             const labels = data.map(d => d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }));
                             const cfg = { type: 'line', data: { labels, datasets: [
-                                { label: 'Media Storica', data: data.map(d => Math.round(d.historic)), borderColor: '#50606e', borderDash: [4,4], fill: false, pointRadius: 3 },
-                                { label: 'Forecast', data: data.map(d => Math.round(d.forecast)), borderColor: '#006493', fill: false, pointRadius: 3 }
+                                { label: 'Media Storica', data: data.map(d => Math.round(d.historic)), borderColor: DASHBOARD_COLORS.chart.secondary, borderDash: [4,4], fill: false, pointRadius: 3 },
+                                { label: 'Forecast', data: data.map(d => Math.round(d.forecast)), borderColor: DASHBOARD_COLORS.chart.primary, fill: false, pointRadius: 3 }
                             ] }, options: { scales: { y: { beginAtZero: true } } } };
                             return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(cfg))}&w=800&h=400&bkg=white`;
                         })() : undefined}
@@ -1243,8 +1243,8 @@ export const RevenueMixCard: React.FC<RevenueMixCardProps> = ({ data, isLoading 
                         chartUrl={data.length > 0 ? (() => {
                             const cfg = { type: 'bar', data: { labels: data.map(d => d.month.split('-')[1]),
                                 datasets: [
-                                    { label: 'T&M', data: data.map(d => Math.round(d.tm)), backgroundColor: '#5b9bd5', stack: 'r' },
-                                    { label: 'Fixed Price', data: data.map(d => Math.round(d.fixed)), backgroundColor: '#e67c73', stack: 'r' }
+                                    { label: 'T&M', data: data.map(d => Math.round(d.tm)), backgroundColor: DASHBOARD_COLORS.chart.tm, stack: 'r' },
+                                    { label: 'Fixed Price', data: data.map(d => Math.round(d.fixed)), backgroundColor: DASHBOARD_COLORS.chart.fixed, stack: 'r' }
                                 ]
                             }, options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } } };
                             return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(cfg))}&w=800&h=400&bkg=white`;

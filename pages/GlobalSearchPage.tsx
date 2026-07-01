@@ -35,7 +35,7 @@ const GlobalSearchPage: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-20">
-             <div className="flex flex-col gap-4 bg-surface p-6 rounded-3xl shadow-sm border border-outline-variant sticky top-0 z-20">
+             <div className="flex flex-col gap-4 bg-surface p-6 rounded-2xl shadow-sm border border-outline-variant sticky top-0 z-20">
                 <h1 className="text-3xl font-bold text-on-surface flex items-center gap-3">
                     <span className="material-symbols-outlined text-4xl text-primary">search</span>
                     Ricerca Globale
@@ -68,7 +68,7 @@ const GlobalSearchPage: React.FC = () => {
                 {Object.entries(groupedResults).map(([type, items]: [string, SearchResult[]]) => (
                     <div key={type} className="bg-surface rounded-2xl border border-outline-variant overflow-hidden shadow-sm">
                         <div className="bg-surface-container px-6 py-3 border-b border-outline-variant flex justify-between items-center">
-                            <h3 className="text-sm font-black text-on-surface-variant uppercase tracking-widest">{type}</h3>
+                            <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-wide">{type}</h3>
                             <span className="bg-surface text-on-surface text-xs font-bold px-2 py-0.5 rounded-full border border-outline-variant">{items.length}</span>
                         </div>
                         <div className="divide-y divide-outline-variant">
