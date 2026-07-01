@@ -81,7 +81,7 @@
   --color-on-error-container: #f3dbe3;
   --color-background: #06262b;
   --color-on-background: #eaf2f3;
-  --color-surface: #06262b;
+  --color-surface: #12414a;             /* era identico a --color-background: card invisibili sul fondo */
   --color-on-surface: #eaf2f3;
   --color-surface-variant: #1e3b40;
   --color-on-surface-variant: #b0c4c8;
@@ -92,11 +92,11 @@
   --color-inverse-surface: #eaf2f3;
   --color-inverse-on-surface: #06262b;
   --color-inverse-primary: #06414a;
-  --color-surface-container-lowest: #041c20;
-  --color-surface-container-low: #0a2e33;
-  --color-surface-container: #0e3338;
-  --color-surface-container-high: #143c42;
-  --color-surface-container-highest: #1a454c;
+  --color-surface-container-lowest: #06262b;
+  --color-surface-container-low: #14454e;  /* +~40% di contrasto vs background rispetto all'originale */
+  --color-surface-container: #184b54;
+  --color-surface-container-high: #1f535d;
+  --color-surface-container-highest: #285c66;
 
   /* Custom Colors */
   --color-yellow-container: #fae650;
