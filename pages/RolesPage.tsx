@@ -226,8 +226,8 @@ const RolesPage: React.FC = () => {
                     <div className="space-y-3">
                          <div><label className="text-xs font-medium text-on-surface-variant">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                          <div><label className="text-xs font-medium text-on-surface-variant">Livello</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
-                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={editingRole?.dailyCost} onChange={handleChange} className="w-full form-input p-1"/></div>
-                         <div><label className="text-xs font-medium text-on-surface-variant">Overhead %</label><input type="number" step="0.01" name="overheadPct" value={editingRole?.overheadPct || 0} onChange={handleChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Overhead %</label><input type="number" step="0.01" name="overheadPct" value={inlineEditingData!.overheadPct || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                         <div className="flex justify-end space-x-2 pt-2">
                              <button aria-label="Salva modifica" onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}

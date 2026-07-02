@@ -164,7 +164,6 @@ const styleTitleSheet = (ws: ExcelJS.Worksheet): void => {
 
 const book_new = (): ExcelJS.Workbook => new ExcelJS.Workbook();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const json_to_sheet = (rows: any[]): SheetDescriptor => {
     const records = rows as Record<string, unknown>[];
     return { _kind: 'json', headers: collectHeaders(records), rows: records };

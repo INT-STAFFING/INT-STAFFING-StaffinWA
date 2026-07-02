@@ -74,8 +74,8 @@ const ProjectCostsReport: React.FC = () => {
                                 // Cost Calculation (Historical)
                                 const dailyCostRate = getRoleCost(resource.roleId, allocDate);
                                 
-                                // Revenue Calculation (Sell Rate)
-                                const dailySellRate = getSellRate(rateCardId, resource.roleId);
+                                // Revenue Calculation (Sell Rate) — le tariffe di vendita sono per risorsa
+                                const dailySellRate = getSellRate(rateCardId, resource.id!);
                                 
                                 personDays += dayFraction;
                                 allocatedCost += dayFraction * dailyCostRate;

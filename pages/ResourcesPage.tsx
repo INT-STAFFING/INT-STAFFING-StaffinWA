@@ -115,7 +115,6 @@ const ResourcesPage: React.FC = () => {
             // Pulisce lo state per evitare la riapertura al re-render / back.
             navigate(location.pathname, { replace: true, state: {} });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.state]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);

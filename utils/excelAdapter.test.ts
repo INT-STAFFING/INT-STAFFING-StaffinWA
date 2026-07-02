@@ -85,7 +85,6 @@ describe('excelAdapter', () => {
 
     it('foglio assente o vuoto -> array vuoto', () => {
         expect(utils.sheet_to_json(undefined)).toEqual([]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(utils.sheet_to_json({} as any)).toEqual([]);
     });
 });

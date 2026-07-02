@@ -4,7 +4,7 @@
  * Gestisce: sidebarConfig, quickActions, sidebarSections, notifications, notificationConfigs/Rules, pageVisibility, analyticsCache.
  */
 
-import React, { createContext, useState, useContext, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useCallback, useEffect, useMemo, ReactNode } from 'react';
 import { getErrorMessage } from '../utils/getErrorMessage';
 import {
     SidebarItem, SidebarSectionColors, SidebarFooterAction,
@@ -146,7 +146,9 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (data.sidebarSections !== undefined) setSidebarSections(data.sidebarSections);
         if (data.sidebarSectionColors !== undefined) setSidebarSectionColors(data.sidebarSectionColors);
         if (data.sidebarFooterActions !== undefined) setSidebarFooterActions(data.sidebarFooterActions);
-        if (data.dashboardLayout !== undefined) setDashboardLayout(data.dashboardLayout);
+        // Un layout vuoto renderebbe la Dashboard completamente bianca: in quel
+        // caso manteniamo il layout di default.
+        if (data.dashboardLayout !== undefined && data.dashboardLayout.length > 0) setDashboardLayout(data.dashboardLayout);
         if (data.roleHomePages !== undefined) setRoleHomePages(data.roleHomePages);
         if (data.bottomNavPaths !== undefined) setBottomNavPaths(data.bottomNavPaths);
         if (data.pageVisibility !== undefined) setPageVisibility(data.pageVisibility);
@@ -185,6 +187,12 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
             setNotifications(notifs);
         } catch (e) { /* Non critico */ }
     }, []);
+
+    // Le notifiche non arrivano da /api/data: vanno caricate esplicitamente
+    // all'avvio, altrimenti campanella e inbox restano sempre vuote.
+    useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications]);
 
     const markNotificationAsRead = useCallback(async (id?: string): Promise<void> => {
         try {

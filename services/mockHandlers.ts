@@ -191,6 +191,31 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       return { error: 'Azione db_inspector non supportata in mock' };
     }
 
+    // ── rate_card_entries: upsert massivo { entries: [...] } ─────────────────
+    if (entity === 'rate_card_entries' && method === 'POST') {
+      const { entries } = JSON.parse(options.body as string);
+      if (Array.isArray(entries)) {
+        const list: any[] = (db as any).rateCardEntries || [];
+        entries.forEach((entry: any) => {
+          const idx = list.findIndex((e: any) => e.rateCardId === entry.rateCardId && e.resourceId === entry.resourceId);
+          if (idx !== -1) list[idx] = { ...list[idx], ...entry };
+          else list.push(entry);
+        });
+        (db as any).rateCardEntries = list;
+        saveDb(db);
+      }
+      return { success: true };
+    }
+
+    // ── notifications: mark_read (singola o massiva) ─────────────────────────
+    if (entity === 'notifications' && params.action === 'mark_read' && method === 'PUT') {
+      (db as any).notifications = ((db as any).notifications || []).map((n: any) =>
+        !params.id || n.id === params.id ? { ...n, isRead: true } : n
+      );
+      saveDb(db);
+      return { success: true };
+    }
+
     // ── role_entity_visibility: bulk save ────────────────────────────────────
     if (entity === 'role_entity_visibility' && method === 'POST') {
       const { visibilityRules } = JSON.parse(options.body as string);
