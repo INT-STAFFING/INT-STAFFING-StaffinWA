@@ -1,5 +1,30 @@
 
 import { v4 as uuidv4 } from 'uuid';
+
+// ---------------------------------------------------------------------------
+// Date dinamiche per la demo: i dati di esempio devono "vivere" intorno a oggi,
+// altrimenti Staffing/Workload/Dashboard/Forecast appaiono vuoti col passare
+// del tempo (le vecchie date hardcoded al 2024 rendevano la demo inutilizzabile).
+// ---------------------------------------------------------------------------
+const TODAY = new Date();
+const CURRENT_YEAR = TODAY.getFullYear();
+const isoDate = (d: Date): string => d.toISOString().split('T')[0];
+const daysFromToday = (n: number): Date => {
+    const d = new Date(TODAY);
+    d.setDate(d.getDate() + n);
+    return d;
+};
+/** Genera allocazioni sui giorni feriali nell'intervallo [from, to] (offset in giorni da oggi). */
+const buildDemoAllocations = (from: number, to: number, percentage: number): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (let i = from; i <= to; i++) {
+        const d = daysFromToday(i);
+        const dow = d.getUTCDay();
+        if (dow === 0 || dow === 6) continue;
+        out[isoDate(d)] = percentage;
+    }
+    return out;
+};
 import { AppUser, Assignment, Allocation, CalendarEvent, Client, ConfigOption, Contract, ContractProject, ContractManager, Interview, LeaveRequest, LeaveType, Notification, Project, ProjectExpense, RateCard, Resource, ResourceRequest, Role, RoleCostHistory, Skill, SkillCategory, SkillMacroCategory, BillingMilestone, ResourceSkill, ProjectSkill, RoleEntityVisibility } from '../types';
 import { KBArticle } from '../types/knowledgeBase';
 
@@ -113,7 +138,8 @@ export const INITIAL_MOCK_DATA: {
     }
   ],
   projects: [
-    { id: 'p1', name: 'App Mobile Intesa', clientId: 'c1', startDate: '2024-02-01', endDate: '2024-11-30', budget: 120000, realizationPercentage: 100, projectManager: 'Elena Bianchi', status: 'In corso', billingType: 'TIME_MATERIAL' }
+    { id: 'p1', name: 'App Mobile Intesa', clientId: 'c1', startDate: `${CURRENT_YEAR}-01-01`, endDate: `${CURRENT_YEAR}-12-31`, budget: 120000, realizationPercentage: 100, projectManager: 'Elena Bianchi', status: 'In corso', billingType: 'TIME_MATERIAL', contractId: 'ct1' },
+    { id: 'p2', name: 'Data Platform EcoEnergy', clientId: 'c2', startDate: isoDate(daysFromToday(-60)), endDate: isoDate(daysFromToday(120)), budget: 80000, realizationPercentage: 100, projectManager: 'Elena Bianchi', status: 'In corso', billingType: 'FIXED_PRICE', contractId: null }
   ],
   users: [
     { id: 'admin-id', username: 'admin', role: 'ADMIN', resourceId: null, managerIds: [], isActive: true, mustChangePassword: false },
@@ -121,10 +147,12 @@ export const INITIAL_MOCK_DATA: {
     { id: 'dev-id', username: 'm.rossi', role: 'SIMPLE', resourceId: 'res1', managerIds: ['mgr-id'], isActive: true, mustChangePassword: false }
   ],
   assignments: [
-    { id: 'as1', resourceId: 'res1', projectId: 'p1' }
+    { id: 'as1', resourceId: 'res1', projectId: 'p1' },
+    { id: 'as2', resourceId: 'res2', projectId: 'p2' }
   ],
   allocations: {
-    'as1': { '2024-06-03': 100, '2024-06-04': 100, '2024-06-05': 100 }
+    'as1': buildDemoAllocations(-20, 25, 80),
+    'as2': buildDemoAllocations(-10, 15, 50)
   },
   
   // Skill Data
@@ -183,19 +211,41 @@ export const INITIAL_MOCK_DATA: {
   ],
 
   // Financials
-  contracts: [],
-  contractProjects: [],
-  contractManagers: [],
-  rateCards: [],
-  rateCardEntries: [],
+  contracts: [
+    { id: 'ct1', name: 'Accordo Quadro Intesa', startDate: `${CURRENT_YEAR}-01-01`, endDate: isoDate(daysFromToday(75)), cig: 'CIG0012345', cigDerivato: null, wbs: 'WBS-INT-01', capienza: 200000, backlog: 150000, rateCardId: 'rc1', billingType: 'TIME_MATERIAL' }
+  ],
+  contractProjects: [
+    { contractId: 'ct1', projectId: 'p1' }
+  ],
+  contractManagers: [
+    { contractId: 'ct1', resourceId: 'res2' }
+  ],
+  rateCards: [
+    { id: 'rc1', name: 'Listino Standard', currency: 'EUR' }
+  ],
+  rateCardEntries: [
+    { rateCardId: 'rc1', resourceId: 'res1', dailyRate: 750 },
+    { rateCardId: 'rc1', resourceId: 'res2', dailyRate: 980 }
+  ],
   projectExpenses: [],
-  billingMilestones: [],
+  billingMilestones: [
+    { id: 'bm1', projectId: 'p2', name: 'Anticipo 25%', date: isoDate(daysFromToday(20)), amount: 20000, status: 'PLANNED' }
+  ],
   roleCostHistory: [],
-  
+
   // Operational
-  companyCalendar: [],
-  leaveTypes: [],
-  leaveRequests: [],
+  companyCalendar: [
+    { id: 'ce1', name: 'Ferragosto', date: `${CURRENT_YEAR}-08-15`, type: 'NATIONAL_HOLIDAY', location: null },
+    { id: 'ce2', name: 'Natale', date: `${CURRENT_YEAR}-12-25`, type: 'NATIONAL_HOLIDAY', location: null }
+  ],
+  leaveTypes: [
+    { id: 'lt1', name: 'Ferie', color: '#4caf50', affectsCapacity: true, requiresApproval: true },
+    { id: 'lt2', name: 'Malattia', color: '#f44336', affectsCapacity: true, requiresApproval: false },
+    { id: 'lt3', name: 'Permesso', color: '#ff9800', affectsCapacity: true, requiresApproval: true }
+  ],
+  leaveRequests: [
+    { id: 'lr1', resourceId: 'res1', typeId: 'lt1', startDate: isoDate(daysFromToday(7)), endDate: isoDate(daysFromToday(9)), status: 'PENDING', managerId: null, approverIds: ['res2'], notes: 'Ferie estive', isHalfDay: false }
+  ],
   notifications: [],
 
   // Configuration

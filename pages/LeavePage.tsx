@@ -66,7 +66,10 @@ const leaveRequestSchema = z.object({
 }, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] });
 
 const LeavePage: React.FC = () => {
-    const { user, isAdmin, hasEntityVisibility } = useAuth();
+    const { user, isAdmin: isAdminUser, isLoginProtectionEnabled, hasEntityVisibility } = useAuth();
+    // Senza protezione login non esiste un'identità: tutte le richieste sono
+    // visibili e gestibili come per un admin (coerente con hasEntityVisibility).
+    const isAdmin = isAdminUser || !isLoginProtectionEnabled;
     const { leaveRequests, leaveTypes, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest } = useHRContext();
     const { resources, managerResourceIds } = useResourcesContext();
     const { companyCalendar } = useLookupContext();

@@ -200,13 +200,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [user]);
 
     const hasEntityVisibility = useCallback((entity: string): boolean => {
+        // Con la protezione login disattivata non esiste un utente: tutte le
+        // entità sono visibili (coerente con DynamicRoute che bypassa i permessi).
+        if (!isLoginProtectionEnabled) return true;
         if (!user) return false;
         // ADMIN vede sempre tutte le entità
         if (user.role === 'ADMIN') return true;
         // Se entityVisibility è vuoto (vecchia sessione senza il campo), default visibile per retro-compatibilità
         if (!user.entityVisibility || user.entityVisibility.length === 0) return true;
         return user.entityVisibility.includes(entity);
-    }, [user]);
+    }, [user, isLoginProtectionEnabled]);
 
     const value = {
         user,
