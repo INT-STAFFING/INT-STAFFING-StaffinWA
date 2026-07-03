@@ -92,7 +92,7 @@ const NotificationsPage: React.FC = () => {
             {sortedNotifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-2xl border border-dashed border-outline-variant text-on-surface-variant opacity-60">
                     <span className="material-symbols-outlined text-6xl mb-4">notifications_off</span>
-                    <p className="text-lg font-medium">Non ci sono notifiche {filter === 'unread' ? 'da leggere' : ''}.</p>
+                    <p className="text-lg font-medium">Non ci sono notifiche{filter === 'unread' ? ' da leggere' : ''}.</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -115,10 +115,13 @@ const NotificationsPage: React.FC = () => {
                                         ${notification.isRead ? 'bg-surface-container-high text-on-surface-variant' : 'bg-primary text-on-primary'}
                                     `}>
                                         <span className="material-symbols-outlined text-xl">
-                                            {notification.title.includes('Richiesta') ? 'assignment' : 
-                                             notification.title.includes('Assegnazione') ? 'work' :
-                                             notification.title.includes('Allocazione') ? 'calendar_month' :
-                                             'info'}
+                                            {(() => {
+                                                const title = notification.title.toLowerCase();
+                                                if (title.includes('richiesta')) return 'assignment';
+                                                if (title.includes('assegnazione')) return 'work';
+                                                if (title.includes('allocazione')) return 'calendar_month';
+                                                return 'info';
+                                            })()}
                                         </span>
                                     </div>
                                     <div>
