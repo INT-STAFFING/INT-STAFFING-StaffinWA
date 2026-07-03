@@ -190,7 +190,16 @@ const TalentConfigSection: React.FC = () => {
                         {columns.map((col, i) => <td key={i} className="px-6 py-3 whitespace-nowrap bg-inherit">{col.cell(r)}</td>)}
                     </tr>
                 )}
-                renderMobileCard={() => <></>}
+                renderMobileCard={(r) => (
+                    <div key={r.id} className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant space-y-3">
+                        {columns.map(col => (
+                            <div key={col.header}>
+                                <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">{col.header}</p>
+                                {col.cell(r)}
+                            </div>
+                        ))}
+                    </div>
+                )}
                 initialSortKey="name"
                 isLoading={false}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}

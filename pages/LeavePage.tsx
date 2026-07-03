@@ -283,9 +283,9 @@ const LeavePage: React.FC = () => {
                         approverIds.map(approverId =>
                             createNotification({
                                 recipientResourceId: approverId,
-                                title: 'Nuova richiesta di assenza',
+                                title: 'Nuova Richiesta di Assenza',
                                 message: `${requesterName} ha richiesto ${typeName} dal ${formatDateFull(editingRequest.startDate)} al ${formatDateFull(editingRequest.endDate)}. È necessaria la tua approvazione.`,
-                                link: '/#/leaves',
+                                link: '/leaves',
                                 isRead: false,
                                 createdAt,
                             })

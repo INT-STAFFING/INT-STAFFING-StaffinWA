@@ -426,7 +426,7 @@ export function DataTable<T extends { id?: string }>({
                                                 const rowProps = element.props;
 
                                                 return (
-                                                    <tr {...rowProps} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
+                                                    <tr {...rowProps} key={element.key ?? rowIndex} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
                                                         <td 
                                                             className={combineClassNames(
                                                                 "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
@@ -492,7 +492,9 @@ export function DataTable<T extends { id?: string }>({
                                 ))}
                             </>
                         ) : sortedData.length > 0 ? (
-                            sortedData.map(item => renderMobileCard(item))
+                            sortedData.map((item, rowIndex) => (
+                                <React.Fragment key={item.id ?? rowIndex}>{renderMobileCard(item)}</React.Fragment>
+                            ))
                         ) : (
                             emptyContent
                         )}
