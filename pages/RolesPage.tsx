@@ -11,6 +11,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatCurrency } from '../utils/formatters';
@@ -26,7 +27,7 @@ const RolesPage: React.FC = () => {
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | Omit<Role, 'id'> | null>(null);
-    const [filters, setFilters] = useState({ name: '', seniorityLevel: '' });
+    const [filters, setFilters] = useState({ name: '', seniorityLevel: [] as string[] });
     
     // Deletion State
     const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
@@ -61,7 +62,7 @@ const RolesPage: React.FC = () => {
     const filteredRoles = useMemo(() => {
         return roles.filter(role => {
             const nameMatch = role.name.toLowerCase().includes(filters.name.toLowerCase());
-            const seniorityMatch = filters.seniorityLevel ? role.seniorityLevel === filters.seniorityLevel : true;
+            const seniorityMatch = filters.seniorityLevel.length === 0 || filters.seniorityLevel.includes(role.seniorityLevel);
             return nameMatch && seniorityMatch;
         });
     }, [roles, filters]);
@@ -81,8 +82,8 @@ const RolesPage: React.FC = () => {
     }, [filteredRoles]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ name: '', seniorityLevel: '' });
+    const handleFilterSelectChange = (name: string, values: string[]) => setFilters(prev => ({ ...prev, [name]: values }));
+    const resetFilters = () => setFilters({ name: '', seniorityLevel: [] });
 
     const openModalForNew = () => { setEditingRole(emptyRole); setIsModalOpen(true); };
     const openModalForEdit = (role: Role) => { 
@@ -268,7 +269,7 @@ const RolesPage: React.FC = () => {
     const filtersNode = (
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-            <SearchableSelect name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
+            <MultiSelectDropdown name="seniorityLevel" selectedValues={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
             <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
         </div>
     );

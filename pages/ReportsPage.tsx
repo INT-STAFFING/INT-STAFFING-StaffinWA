@@ -8,7 +8,7 @@ import { useAllocationsContext, useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -42,11 +42,11 @@ const ProjectCostsReport: React.FC = () => {
     const { projectStatuses, companyCalendar } = useLookupContext();
     const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
-    const [filters, setFilters] = useState({ clientId: '', status: '' });
+    const [filters, setFilters] = useState({ clientId: [] as string[], status: [] as string[] });
 
     const reportData = useMemo(() => {
         return projects
-            .filter(p => (!filters.clientId || p.clientId === filters.clientId) && (!filters.status || p.status === filters.status))
+            .filter(p => (filters.clientId.length === 0 || filters.clientId.includes(p.clientId || '')) && (filters.status.length === 0 || filters.status.includes(p.status || '')))
             .map(project => {
                 let allocatedCost = 0;
                 let estimatedRevenue = 0;
@@ -259,8 +259,8 @@ const ProjectCostsReport: React.FC = () => {
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
-            <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
+            <MultiSelectDropdown name="clientId" selectedValues={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
+            <MultiSelectDropdown name="status" selectedValues={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
             <div className="flex flex-wrap items-center gap-2">
                 <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
@@ -298,7 +298,7 @@ const ResourceUtilizationReport: React.FC = () => {
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     // Updated filters state horizontal -> function
-    const [filters, setFilters] = useState({ roleId: '', function: '' });
+    const [filters, setFilters] = useState({ roleId: [] as string[], function: [] as string[] });
 
     const reportData = useMemo(() => {
         const [year, monthNum] = month.split('-').map(Number);
@@ -308,7 +308,7 @@ const ResourceUtilizationReport: React.FC = () => {
         return resources
             .filter(r => !r.resigned)
             // Corrected usage of resource.function instead of resource.horizontal
-            .filter(r => (!filters.roleId || r.roleId === filters.roleId) && (!filters.function || r.function === filters.function))
+            .filter(r => (filters.roleId.length === 0 || filters.roleId.includes(r.roleId)) && (filters.function.length === 0 || filters.function.includes(r.function)))
             .map(resource => {
                 const role = roles.find(ro => ro.id === resource.roleId);
                 
@@ -508,8 +508,8 @@ const ResourceUtilizationReport: React.FC = () => {
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
-            <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
-            <SearchableSelect name="function" value={filters.function} onChange={(_, v) => setFilters(f => ({...f, function: v}))} options={functionOptions} placeholder="Tutte le Function"/>
+            <MultiSelectDropdown name="roleId" selectedValues={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
+            <MultiSelectDropdown name="function" selectedValues={filters.function} onChange={(_, v) => setFilters(f => ({...f, function: v}))} options={functionOptions} placeholder="Tutte le Function"/>
             <div className="flex flex-wrap items-center gap-2">
                 <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV

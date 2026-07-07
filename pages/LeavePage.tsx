@@ -87,7 +87,7 @@ const LeavePage: React.FC = () => {
     const [requestToDelete, setRequestToDelete] = useState<LeaveRequest | null>(null);
 
     // Filters
-    const [filters, setFilters] = useState({ resourceId: '', typeId: '', status: '' });
+    const [filters, setFilters] = useState({ resourceId: [] as string[], typeId: [] as string[], status: [] as string[] });
 
     const currentUserResource = useMemo(() => resources.find(r => r.id === user?.resourceId), [resources, user]);
 
@@ -126,9 +126,9 @@ const LeavePage: React.FC = () => {
     // Apply UI Filters on top of accessible requests
     const filteredRequests = useMemo(() => {
         return accessibleRequests.filter(req => {
-            if (filters.resourceId && req.resourceId !== filters.resourceId) return false;
-            if (filters.typeId && req.typeId !== filters.typeId) return false;
-            if (filters.status && req.status !== filters.status) return false;
+            if (filters.resourceId.length > 0 && !filters.resourceId.includes(req.resourceId || '')) return false;
+            if (filters.typeId.length > 0 && !filters.typeId.includes(req.typeId || '')) return false;
+            if (filters.status.length > 0 && !filters.status.includes(req.status)) return false;
             return true;
         });
     }, [accessibleRequests, filters]);
@@ -362,7 +362,10 @@ const LeavePage: React.FC = () => {
     };
 
     const handleFilterClick = (status: string) => {
-        setFilters(prev => ({ ...prev, status: prev.status === status ? '' : status }));
+        setFilters(prev => ({
+            ...prev,
+            status: prev.status.includes(status) ? prev.status.filter(s => s !== status) : [...prev.status, status]
+        }));
     };
 
     // --- Render Components ---
@@ -533,12 +536,12 @@ const LeavePage: React.FC = () => {
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
-            <SearchableSelect name="typeId" value={filters.typeId} onChange={(_, v) => setFilters(f => ({...f, typeId: v}))} options={typeOptions} placeholder="Tutte le Tipologie"/>
+            <MultiSelectDropdown name="resourceId" selectedValues={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
+            <MultiSelectDropdown name="typeId" selectedValues={filters.typeId} onChange={(_, v) => setFilters(f => ({...f, typeId: v}))} options={typeOptions} placeholder="Tutte le Tipologie"/>
             <div className="flex flex-wrap items-center gap-2 md:col-span-2">
                 <ExportButton data={exportData} title="Richieste Assenza" />
                 <PdfExportButton buildConfig={buildPdfConfig} />
-                <button onClick={() => setFilters({ resourceId: '', typeId: '', status: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold hover:opacity-90">Reset Filtri</button>
+                <button onClick={() => setFilters({ resourceId: [], typeId: [], status: [] })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold hover:opacity-90">Reset Filtri</button>
             </div>
         </div>
     );
@@ -570,11 +573,11 @@ const LeavePage: React.FC = () => {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div onClick={() => handleFilterClick('PENDING')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status === 'PENDING' ? 'bg-yellow-container border-yellow-500 scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                <div onClick={() => handleFilterClick('PENDING')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status.includes('PENDING') ? 'bg-yellow-container border-yellow-500 scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
                     <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">In Attesa</p>
                     <p className="text-3xl font-black text-on-surface">{kpis.pending}</p>
                 </div>
-                <div onClick={() => handleFilterClick('APPROVED')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status === 'APPROVED' ? 'bg-tertiary-container border-tertiary scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                <div onClick={() => handleFilterClick('APPROVED')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status.includes('APPROVED') ? 'bg-tertiary-container border-tertiary scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
                     <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">Approvate</p>
                     <p className="text-3xl font-black text-on-surface">{kpis.approved}</p>
                 </div>
@@ -582,7 +585,7 @@ const LeavePage: React.FC = () => {
                     <p className="text-xs font-bold text-primary uppercase tracking-wide">Assenti Oggi</p>
                     <p className="text-3xl font-black text-primary">{kpis.onLeaveToday}</p>
                 </div>
-                <div onClick={() => handleFilterClick('REJECTED')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status === 'REJECTED' ? 'bg-error-container border-error scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                <div onClick={() => handleFilterClick('REJECTED')} className={`p-4 rounded-2xl border transition-all cursor-pointer ${filters.status.includes('REJECTED') ? 'bg-error-container border-error scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
                     <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">Rifiutate</p>
                     <p className="text-3xl font-black text-on-surface">{kpis.rejected}</p>
                 </div>

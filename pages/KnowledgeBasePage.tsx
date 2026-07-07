@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useKnowledgeBaseContext } from '../context/KnowledgeBaseContext';
 import { useEntitiesContext } from '../context/AppContext';
 import Modal from '../components/Modal';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import EmptyState from '../components/EmptyState';
 import { SpinnerIcon } from '../components/icons';
@@ -48,8 +49,8 @@ const KnowledgeBasePage: React.FC = () => {
     const { resources, skills, projects, contracts, clients } = useEntitiesContext();
 
     const [search, setSearch] = useState('');
-    const [formatFilter, setFormatFilter] = useState<ContentFormat | ''>('');
-    const [entityFilter, setEntityFilter] = useState<LinkedEntityType | ''>('');
+    const [formatFilter, setFormatFilter] = useState<ContentFormat[]>([]);
+    const [entityFilter, setEntityFilter] = useState<LinkedEntityType[]>([]);
 
     const [draft, setDraft] = useState<KBArticle | null>(null);
     const [tagsText, setTagsText] = useState('');
@@ -127,7 +128,7 @@ const KnowledgeBasePage: React.FC = () => {
         setDraft(prev => (prev ? { ...prev, [key]: value } : prev));
     };
 
-    const resetFilters = () => { setSearch(''); setFormatFilter(''); setEntityFilter(''); };
+    const resetFilters = () => { setSearch(''); setFormatFilter([]); setEntityFilter([]); };
 
     return (
         <div className="space-y-6">
@@ -161,27 +162,23 @@ const KnowledgeBasePage: React.FC = () => {
                     placeholder="Cerca per titolo o contenuto..."
                     aria-label="Cerca schede"
                 />
-                <select
-                    value={formatFilter}
-                    onChange={(e) => setFormatFilter(e.target.value as ContentFormat | '')}
-                    className="form-input"
-                    aria-label="Filtra per formato"
-                >
-                    <option value="">Tutti i formati</option>
-                    <option value="html">Solo HTML</option>
-                    <option value="plain">Solo Plain</option>
-                </select>
-                <select
-                    value={entityFilter}
-                    onChange={(e) => setEntityFilter(e.target.value as LinkedEntityType | '')}
-                    className="form-input"
-                    aria-label="Filtra per entità collegata"
-                >
-                    <option value="">Tutte le entità</option>
-                    {ENTITY_TYPES.map(t => (
-                        <option key={t} value={t}>{ENTITY_TYPE_META[t].plural}</option>
-                    ))}
-                </select>
+                <MultiSelectDropdown
+                    name="formatFilter"
+                    selectedValues={formatFilter}
+                    onChange={(_, v) => setFormatFilter(v as ContentFormat[])}
+                    options={[
+                        { value: 'html', label: 'HTML' },
+                        { value: 'plain', label: 'Plain' },
+                    ]}
+                    placeholder="Tutti i formati"
+                />
+                <MultiSelectDropdown
+                    name="entityFilter"
+                    selectedValues={entityFilter}
+                    onChange={(_, v) => setEntityFilter(v as LinkedEntityType[])}
+                    options={ENTITY_TYPES.map(t => ({ value: t, label: ENTITY_TYPE_META[t].plural }))}
+                    placeholder="Tutte le entità"
+                />
             </div>
 
             {/* Contenuto */}

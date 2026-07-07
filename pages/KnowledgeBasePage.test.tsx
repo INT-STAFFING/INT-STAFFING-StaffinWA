@@ -86,8 +86,9 @@ describe('KnowledgeBasePage - lista e ricerca', () => {
         setupContext({ articles: [article(), article({ id: 'a2', title: 'Nota Plain', format: 'plain' })] });
         setupEntities();
         renderPage();
-        const formatFilter = screen.getByLabelText('Filtra per formato');
-        fireEvent.change(formatFilter, { target: { value: 'plain' } });
+        const formatFilterButton = screen.getByRole('button', { name: /Tutti i formati/i });
+        fireEvent.click(formatFilterButton);
+        fireEvent.click(screen.getByRole('option', { name: 'Plain' }));
         expect(screen.getByText('Nota Plain')).toBeDefined();
         expect(screen.queryByText('Onboarding Risorse')).toBeNull();
     });

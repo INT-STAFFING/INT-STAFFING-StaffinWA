@@ -11,7 +11,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { useHRContext } from '../context/HRContext';
 import { LeaveRequest, Project, Assignment } from '../types';
 import { getWorkingDaysBetween, getLeaveDurationInWorkingDays, parseISODate, isHoliday, buildHolidaySet, isHolidayInSet, getWorkingDaysBetweenWithSet } from '../utils/dateUtils';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
 /**
  * Componente per la pagina di Forecasting e Capacity Planning.
@@ -27,7 +27,7 @@ const ForecastingPage: React.FC = () => {
     const { allocations } = useAllocationsContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     // Updated filters state horizontal -> function
-    const [filters, setFilters] = useState({ function: '', clientId: '', projectId: ''});
+    const [filters, setFilters] = useState({ function: [] as string[], clientId: [] as string[], projectId: [] as string[] });
     const [enableProjections, setEnableProjections] = useState(true); // Toggle per attivare l'algoritmo predittivo
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -38,25 +38,25 @@ const ForecastingPage: React.FC = () => {
     }, []);
     
     const availableProjects = useMemo(() => {
-        if (!filters.clientId) {
+        if (filters.clientId.length === 0) {
             return projects;
         }
-        return projects.filter(p => p.clientId === filters.clientId);
+        return projects.filter(p => filters.clientId.includes(p.clientId || ''));
     }, [projects, filters.clientId]);
 
-    const handleFilterChange = (name: string, value: string) => {
+    const handleFilterChange = (name: string, values: string[]) => {
         setFilters(prev => {
-            const newFilters = { ...prev, [name]: value };
+            const newFilters = { ...prev, [name]: values };
             // Reset project filter if client changes
             if (name === 'clientId') {
-                newFilters.projectId = '';
+                newFilters.projectId = [];
             }
             return newFilters;
         });
     };
 
     const resetFilters = () => {
-        setFilters({ function: '', clientId: '', projectId: ''});
+        setFilters({ function: [], clientId: [], projectId: [] });
     };
 
     // OPTIMIZATION: Set di festività precompilato per lookup O(1) nei loop caldi.
@@ -114,19 +114,19 @@ const ForecastingPage: React.FC = () => {
         // Pre-filter resources and assignments to reduce inner loop iterations
         let filteredResources = resources.filter(r => !r.resigned);
         // Corrected filter resource.function instead of resource.horizontal
-        if (filters.function) {
-            filteredResources = filteredResources.filter(r => r.function === filters.function);
+        if (filters.function.length > 0) {
+            filteredResources = filteredResources.filter(r => filters.function.includes(r.function));
         }
-        
+
         let assignmentsToConsider = [...assignments];
 
-        if (filters.projectId) {
-            assignmentsToConsider = assignmentsToConsider.filter(a => a.projectId === filters.projectId);
+        if (filters.projectId.length > 0) {
+            assignmentsToConsider = assignmentsToConsider.filter(a => filters.projectId.includes(a.projectId || ''));
             const resourceIdsInProject = new Set(assignmentsToConsider.map(a => a.resourceId));
             filteredResources = filteredResources.filter(r => resourceIdsInProject.has(r.id!));
-        } else if (filters.clientId) {
+        } else if (filters.clientId.length > 0) {
             const projectIdsForClient = new Set(
-                projects.filter(p => p.clientId === filters.clientId).map(p => p.id)
+                projects.filter(p => filters.clientId.includes(p.clientId || '')).map(p => p.id)
             );
             assignmentsToConsider = assignmentsToConsider.filter(a => projectIdsForClient.has(a.projectId!));
             const resourceIdsForClient = new Set(assignmentsToConsider.map(a => a.resourceId));
@@ -356,15 +356,15 @@ const ForecastingPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
                         <label className="block text-sm font-medium text-on-surface-variant">Function</label>
-                        <SearchableSelect name="function" value={filters.function} onChange={handleFilterChange} options={functionOptions} placeholder="Tutte le Function"/>
+                        <MultiSelectDropdown name="function" selectedValues={filters.function} onChange={handleFilterChange} options={functionOptions} placeholder="Tutte le Function"/>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-on-surface-variant">Cliente</label>
-                        <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/>
+                        <MultiSelectDropdown name="clientId" selectedValues={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-on-surface-variant">Progetto</label>
-                        <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
+                        <MultiSelectDropdown name="projectId" selectedValues={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
                     </div>
                     <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>
                 </div>

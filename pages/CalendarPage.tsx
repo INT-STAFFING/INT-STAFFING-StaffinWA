@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext';
 import { CalendarEvent, CalendarEventType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatDateFull } from '../utils/dateUtils';
@@ -42,7 +43,7 @@ const CalendarPage: React.FC = () => {
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<CalendarEvent | Omit<CalendarEvent, 'id'> | null>(null);
-    const [filters, setFilters] = useState({ name: '', type: '' });
+    const [filters, setFilters] = useState({ name: '', type: [] as string[] });
 
     const emptyEvent: Omit<CalendarEvent, 'id'> = {
         name: '',
@@ -56,7 +57,7 @@ const CalendarPage: React.FC = () => {
         return companyCalendar
             .filter(event => {
                 const nameMatch = event.name.toLowerCase().includes(filters.name.toLowerCase());
-                const typeMatch = filters.type ? event.type === filters.type : true;
+                const typeMatch = filters.type.length === 0 || filters.type.includes(event.type);
                 return nameMatch && typeMatch;
             })
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -64,8 +65,8 @@ const CalendarPage: React.FC = () => {
 
     // --- Handlers ---
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ name: '', type: '' });
+    const handleFilterSelectChange = (name: string, values: string[]) => setFilters(prev => ({ ...prev, [name]: values }));
+    const resetFilters = () => setFilters({ name: '', type: [] });
 
     const openModalForNew = () => {
         setEditingEvent(emptyEvent);
@@ -175,7 +176,7 @@ const CalendarPage: React.FC = () => {
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca evento..." />
-            <SearchableSelect name="type" value={filters.type} onChange={handleFilterSelectChange} options={eventTypeOptions} placeholder="Tutti i tipi" />
+            <MultiSelectDropdown name="type" selectedValues={filters.type} onChange={handleFilterSelectChange} options={eventTypeOptions} placeholder="Tutti i tipi" />
             <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
         </div>
     );

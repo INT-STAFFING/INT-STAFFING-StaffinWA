@@ -23,7 +23,7 @@ import {
 import { buildAllocationSnapshot } from '../utils/allocationUtils';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
@@ -688,7 +688,7 @@ export const StaffingPage: React.FC = () => {
   const [newAssignmentData, setNewAssignmentData] = useState<AssignmentFormValues>({ resourceId: '', projectIds: [] });
 
   // Filters State (Input)
-  const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
+  const [filters, setFilters] = useState({ resourceId: [] as string[], projectId: [] as string[], clientId: [] as string[], projectManager: [] as string[] });
   // Debounced Filter State (For Logic)
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
 
@@ -831,13 +831,13 @@ export const StaffingPage: React.FC = () => {
       }
   };
   
-  const handleFilterChange = useCallback((name: string, value: string) => {
-      setFilters(prev => ({ ...prev, [name]: value }));
+  const handleFilterChange = useCallback((name: string, values: string[]) => {
+      setFilters(prev => ({ ...prev, [name]: values }));
       setCurrentPage(1);
   }, []);
-  
+
   const clearFilters = useCallback(() => {
-      setFilters({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
+      setFilters({ resourceId: [], projectId: [], clientId: [], projectManager: [] });
       setCurrentPage(1);
   }, []);
 
@@ -849,27 +849,27 @@ export const StaffingPage: React.FC = () => {
   // 1. Filter Assignments based on Project/Client filters FIRST (Using DEBOUNCED filters)
   const filteredAssignments = useMemo(() => {
       return assignments.filter(a =>
-        (!debouncedFilters.projectId || a.projectId === debouncedFilters.projectId) &&
-        (!debouncedFilters.clientId || projectsById.get(a.projectId)?.clientId === debouncedFilters.clientId) &&
-        (!debouncedFilters.projectManager || projectsById.get(a.projectId)?.projectManager === debouncedFilters.projectManager)
+        (debouncedFilters.projectId.length === 0 || debouncedFilters.projectId.includes(a.projectId)) &&
+        (debouncedFilters.clientId.length === 0 || debouncedFilters.clientId.includes(projectsById.get(a.projectId)?.clientId || '')) &&
+        (debouncedFilters.projectManager.length === 0 || debouncedFilters.projectManager.includes(projectsById.get(a.projectId)?.projectManager || ''))
       );
   }, [assignments, debouncedFilters, projectsById]);
 
   // 2. Determine Relevant Resource IDs (Using DEBOUNCED filters)
   const relevantResourceIds = useMemo(() => {
-      if (debouncedFilters.projectId || debouncedFilters.clientId || debouncedFilters.projectManager) {
+      if (debouncedFilters.projectId.length > 0 || debouncedFilters.clientId.length > 0 || debouncedFilters.projectManager.length > 0) {
           return new Set(filteredAssignments.map(a => a.resourceId));
       }
-      return null; 
+      return null;
   }, [filteredAssignments, debouncedFilters]);
 
   // 3. Filter Resources List (Using DEBOUNCED filters)
   const displayResources = useMemo(() => {
       // Explicitly filter out resigned resources (robust check)
       let visible = resources.filter(r => r.resigned !== true);
-      
-      if (debouncedFilters.resourceId) {
-          visible = visible.filter(r => r.id === debouncedFilters.resourceId);
+
+      if (debouncedFilters.resourceId.length > 0) {
+          visible = visible.filter(r => debouncedFilters.resourceId.includes(r.id!));
       }
       
       if (relevantResourceIds) {
@@ -1115,12 +1115,12 @@ export const StaffingPage: React.FC = () => {
         {/* Filters */}
         <div className="p-4 bg-surface rounded-2xl shadow">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><MultiSelectDropdown name="resourceId" selectedValues={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                 {!isMobile && (
                     <>
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Project Manager</label><SearchableSelect name="projectManager" value={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Cliente</label><MultiSelectDropdown name="clientId" selectedValues={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Project Manager</label><MultiSelectDropdown name="projectManager" selectedValues={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Progetto</label><MultiSelectDropdown name="projectId" selectedValues={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
                     </>
                 )}
                 <button onClick={clearFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>

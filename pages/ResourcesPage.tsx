@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday, formatDateFull } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -64,7 +65,7 @@ const ResourcesPage: React.FC = () => {
         path: ['lastDayOfWork']
     });
     
-    const [filters, setFilters] = useState({ name: '', roleId: '', function: '', industry: '', location: '', status: 'active', tutorId: '' });
+    const [filters, setFilters] = useState({ name: '', roleId: [] as string[], function: [] as string[], industry: [] as string[], location: [] as string[], status: ['active'] as string[], tutorId: [] as string[] });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
 
     useEffect(() => {
@@ -185,12 +186,12 @@ const ResourcesPage: React.FC = () => {
         const filtered = resources.filter(resource => {
             if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) return false;
             const nameMatch = resource.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
-            const roleMatch = debouncedFilters.roleId ? resource.roleId === debouncedFilters.roleId : true;
-            const functionMatch = debouncedFilters.function ? resource.function === debouncedFilters.function : true;
-            const industryMatch = debouncedFilters.industry ? resource.industry === debouncedFilters.industry : true;
-            const locationMatch = debouncedFilters.location ? resource.location === debouncedFilters.location : true;
-            const statusMatch = debouncedFilters.status === 'all' ? true : debouncedFilters.status === 'active' ? !resource.resigned : resource.resigned;
-            const tutorMatch = debouncedFilters.tutorId ? resource.tutorId === debouncedFilters.tutorId : true;
+            const roleMatch = debouncedFilters.roleId.length === 0 || debouncedFilters.roleId.includes(resource.roleId);
+            const functionMatch = debouncedFilters.function.length === 0 || debouncedFilters.function.includes(resource.function);
+            const industryMatch = debouncedFilters.industry.length === 0 || debouncedFilters.industry.includes(resource.industry);
+            const locationMatch = debouncedFilters.location.length === 0 || debouncedFilters.location.includes(resource.location);
+            const statusMatch = debouncedFilters.status.length === 0 || debouncedFilters.status.includes(resource.resigned ? 'resigned' : 'active');
+            const tutorMatch = debouncedFilters.tutorId.length === 0 || debouncedFilters.tutorId.includes(resource.tutorId || '');
             return nameMatch && roleMatch && functionMatch && industryMatch && locationMatch && statusMatch && tutorMatch;
         });
 
@@ -237,9 +238,9 @@ const ResourcesPage: React.FC = () => {
     }, [dataForTable]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
+    const handleFilterSelectChange = (name: string, values: string[]) => setFilters(prev => ({ ...prev, [name]: values }));
     const resetFilters = () => {
-        setFilters({ name: '', roleId: '', function: '', industry: '', location: '', status: 'active', tutorId: '' });
+        setFilters({ name: '', roleId: [], function: [], industry: [], location: [], status: ['active'], tutorId: [] });
         setShowOnlyUnassigned(false);
     };
     
@@ -423,7 +424,7 @@ const ResourcesPage: React.FC = () => {
     const functionOptions = useMemo(() => functions.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [functions]);
     const industryOptions = useMemo(() => industries.sort((a,b)=> a.value.localeCompare(b.value)).map(i => ({ value: i.value, label: i.value })), [industries]);
     const locationOptions = useMemo(() => locations.sort((a,b)=> a.value.localeCompare(b.value)).map(l => ({ value: l.value, label: l.value })), [locations]);
-    const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
+    const statusOptions = useMemo(() => [{value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [resources]);
 
@@ -582,11 +583,11 @@ const ResourcesPage: React.FC = () => {
     const filtersNode = (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
-            <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
-            <SearchableSelect name="function" value={filters.function} onChange={handleFilterSelectChange} options={functionOptions} placeholder="Tutte le Function" />
-            <SearchableSelect name="industry" value={filters.industry} onChange={handleFilterSelectChange} options={industryOptions} placeholder="Tutte le Industry" />
-            <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
-            <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
+            <MultiSelectDropdown name="roleId" selectedValues={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
+            <MultiSelectDropdown name="function" selectedValues={filters.function} onChange={handleFilterSelectChange} options={functionOptions} placeholder="Tutte le Function" />
+            <MultiSelectDropdown name="industry" selectedValues={filters.industry} onChange={handleFilterSelectChange} options={industryOptions} placeholder="Tutte le Industry" />
+            <MultiSelectDropdown name="location" selectedValues={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
+            <MultiSelectDropdown name="status" selectedValues={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
             <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center">
                     <label htmlFor="unassigned-filter" className="flex items-center cursor-pointer">
@@ -624,18 +625,18 @@ const ResourcesPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <button
                     type="button"
-                    onClick={() => setFilters(prev => ({ ...prev, status: 'active' }))}
-                    aria-pressed={filters.status === 'active'}
-                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow transition hover:bg-surface-container ${filters.status === 'active' ? 'ring-2 ring-primary' : ''}`}
+                    onClick={() => setFilters(prev => ({ ...prev, status: ['active'] }))}
+                    aria-pressed={filters.status.length === 1 && filters.status[0] === 'active'}
+                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow transition hover:bg-surface-container ${filters.status.length === 1 && filters.status[0] === 'active' ? 'ring-2 ring-primary' : ''}`}
                 >
                     <p className="text-sm text-on-surface-variant">Risorse Attive</p>
                     <p className="text-2xl font-bold text-primary">{kpis.totalActive}</p>
                 </button>
                 <button
                     type="button"
-                    onClick={() => setFilters(prev => ({ ...prev, status: 'resigned' }))}
-                    aria-pressed={filters.status === 'resigned'}
-                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow transition hover:bg-surface-container ${filters.status === 'resigned' ? 'ring-2 ring-error' : ''}`}
+                    onClick={() => setFilters(prev => ({ ...prev, status: ['resigned'] }))}
+                    aria-pressed={filters.status.length === 1 && filters.status[0] === 'resigned'}
+                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow transition hover:bg-surface-container ${filters.status.length === 1 && filters.status[0] === 'resigned' ? 'ring-2 ring-error' : ''}`}
                 >
                     <p className="text-sm text-on-surface-variant">Risorse Dimesse</p>
                     <p className="text-2xl font-bold text-error">{kpis.resignedCount}</p>

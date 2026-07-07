@@ -20,7 +20,7 @@ import { scaleBand, scaleLinear } from 'd3-scale';
 import { axisBottom, axisLeft, axisRight } from 'd3-axis';
 import { line } from 'd3-shape';
 import { max } from 'd3-array';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { DataTable, ColumnDef } from '../components/DataTable'; // Import DataTable
 import ExportButton from '../components/ExportButton'; // Import ExportButton
 
@@ -53,7 +53,7 @@ export const RevenuePage: React.FC = () => {
     const { theme } = useTheme();
 
     const [year, setYear] = useState(new Date().getFullYear());
-    const [filters, setFilters] = useState({ clientId: '', projectId: '', wbs: '' });
+    const [filters, setFilters] = useState({ clientId: [] as string[], projectId: [] as string[], wbs: [] as string[] });
     const [activeTab, setActiveTab] = useState<ViewTab>('overview');
     
     const svgRef = useRef<SVGSVGElement>(null);
@@ -63,8 +63,8 @@ export const RevenuePage: React.FC = () => {
     
     const projectOptions = useMemo(() => {
         let filtered = projects;
-        if (filters.clientId) {
-            filtered = filtered.filter(p => p.clientId === filters.clientId);
+        if (filters.clientId.length > 0) {
+            filtered = filtered.filter(p => filters.clientId.includes(p.clientId || ''));
         }
         return filtered.map(p => ({ value: p.id!, label: p.name })).sort((a,b) => a.label.localeCompare(b.label));
     }, [projects, filters.clientId]);
@@ -75,7 +75,7 @@ export const RevenuePage: React.FC = () => {
     }, [contracts]);
 
     const handleResetFilters = () => {
-        setFilters({ clientId: '', projectId: '', wbs: '' });
+        setFilters({ clientId: [], projectId: [], wbs: [] });
     };
 
     // --- Helper for Filters ---
@@ -84,15 +84,15 @@ export const RevenuePage: React.FC = () => {
         if (!project) return false;
 
         // Filter by Project ID
-        if (filters.projectId && project.id !== filters.projectId) return false;
+        if (filters.projectId.length > 0 && !filters.projectId.includes(project.id!)) return false;
 
         // Filter by Client ID
-        if (filters.clientId && project.clientId !== filters.clientId) return false;
+        if (filters.clientId.length > 0 && !filters.clientId.includes(project.clientId || '')) return false;
 
         // Filter by WBS
-        if (filters.wbs) {
+        if (filters.wbs.length > 0) {
             const contract = contracts.find(c => c.id === project.contractId);
-            if (!contract || contract.wbs !== filters.wbs) return false;
+            if (!contract || !filters.wbs.includes(contract.wbs || '')) return false;
         }
 
         return true;
@@ -411,26 +411,26 @@ export const RevenuePage: React.FC = () => {
             {/* Filters Bar */}
             <div className="bg-surface rounded-2xl shadow p-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <SearchableSelect 
-                        name="clientId" 
-                        value={filters.clientId} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, clientId: v, projectId: '' }))} // Reset project on client change
-                        options={clientOptions} 
-                        placeholder="Filtra per Cliente" 
+                    <MultiSelectDropdown
+                        name="clientId"
+                        selectedValues={filters.clientId}
+                        onChange={(_, v) => setFilters(prev => ({ ...prev, clientId: v, projectId: [] }))} // Reset project on client change
+                        options={clientOptions}
+                        placeholder="Filtra per Cliente"
                     />
-                    <SearchableSelect 
-                        name="projectId" 
-                        value={filters.projectId} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, projectId: v }))} 
-                        options={projectOptions} 
-                        placeholder="Filtra per Progetto" 
+                    <MultiSelectDropdown
+                        name="projectId"
+                        selectedValues={filters.projectId}
+                        onChange={(_, v) => setFilters(prev => ({ ...prev, projectId: v }))}
+                        options={projectOptions}
+                        placeholder="Filtra per Progetto"
                     />
-                    <SearchableSelect 
-                        name="wbs" 
-                        value={filters.wbs} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, wbs: v }))} 
-                        options={wbsOptions} 
-                        placeholder="Filtra per WBS" 
+                    <MultiSelectDropdown
+                        name="wbs"
+                        selectedValues={filters.wbs}
+                        onChange={(_, v) => setFilters(prev => ({ ...prev, wbs: v }))}
+                        options={wbsOptions}
+                        placeholder="Filtra per WBS"
                     />
                     <button 
                         onClick={handleResetFilters} 

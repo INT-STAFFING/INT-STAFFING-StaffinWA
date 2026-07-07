@@ -46,8 +46,8 @@ export const IdentityPillar: React.FC = () => {
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
-    const [roleFilter, setRoleFilter] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [roleFilter, setRoleFilter] = useState<string[]>([]);
+    const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
     // Bulk selection state
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -101,12 +101,31 @@ export const IdentityPillar: React.FC = () => {
         }
     };
 
+    const roleFilterOptions = useMemo(() => [
+        { value: 'SIMPLE', label: 'Simple User' },
+        { value: 'SIMPLE_EXT', label: 'Simple User (Ext)' },
+        { value: 'MANAGER', label: 'Manager' },
+        { value: 'MANAGER_EXT', label: 'Manager (Ext)' },
+        { value: 'SENIOR MANAGER', label: 'Senior Manager' },
+        { value: 'SENIOR MANAGER_EXT', label: 'Senior Manager (Ext)' },
+        { value: 'ASSOCIATE DIRECTOR', label: 'Associate Director' },
+        { value: 'ASSOCIATE DIRECTOR_EXT', label: 'Associate Director (Ext)' },
+        { value: 'MANAGING DIRECTOR', label: 'Managing Director' },
+        { value: 'MANAGING DIRECTOR_EXT', label: 'Managing Director (Ext)' },
+        { value: 'ADMIN', label: 'Administrator' },
+    ], []);
+
+    const statusFilterOptions = useMemo(() => [
+        { value: 'active', label: 'Attivi' },
+        { value: 'inactive', label: 'Disabilitati' },
+    ], []);
+
     const filteredUsers = useMemo(() => {
         if (!users) return [];
         return users.filter(u => {
             const matchSearch = !searchTerm || u.username.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchRole = !roleFilter || u.role === roleFilter;
-            const matchStatus = statusFilter === '' || (statusFilter === 'active' ? u.isActive : !u.isActive);
+            const matchRole = roleFilter.length === 0 || roleFilter.includes(u.role);
+            const matchStatus = statusFilter.length === 0 || statusFilter.includes(u.isActive ? 'active' : 'inactive');
             return matchSearch && matchRole && matchStatus;
         });
     }, [users, searchTerm, roleFilter, statusFilter]);
@@ -284,37 +303,22 @@ export const IdentityPillar: React.FC = () => {
                 />
             </div>
             <div className="w-full md:w-44">
-                <select
-                    value={roleFilter}
-                    onChange={e => setRoleFilter(e.target.value)}
-                    className="form-select"
-                    aria-label="Filtra per ruolo"
-                >
-                    <option value="">Tutti i ruoli</option>
-                    <option value="SIMPLE">Simple User</option>
-                    <option value="SIMPLE_EXT">Simple User (Ext)</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="MANAGER_EXT">Manager (Ext)</option>
-                    <option value="SENIOR MANAGER">Senior Manager</option>
-                    <option value="SENIOR MANAGER_EXT">Senior Manager (Ext)</option>
-                    <option value="ASSOCIATE DIRECTOR">Associate Director</option>
-                    <option value="ASSOCIATE DIRECTOR_EXT">Associate Director (Ext)</option>
-                    <option value="MANAGING DIRECTOR">Managing Director</option>
-                    <option value="MANAGING DIRECTOR_EXT">Managing Director (Ext)</option>
-                    <option value="ADMIN">Administrator</option>
-                </select>
+                <MultiSelectDropdown
+                    name="roleFilter"
+                    selectedValues={roleFilter}
+                    onChange={(_, v) => setRoleFilter(v)}
+                    options={roleFilterOptions}
+                    placeholder="Tutti i ruoli"
+                />
             </div>
             <div className="w-full md:w-40">
-                <select
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value)}
-                    className="form-select"
-                    aria-label="Filtra per stato"
-                >
-                    <option value="">Tutti gli stati</option>
-                    <option value="active">Attivi</option>
-                    <option value="inactive">Disabilitati</option>
-                </select>
+                <MultiSelectDropdown
+                    name="statusFilter"
+                    selectedValues={statusFilter}
+                    onChange={(_, v) => setStatusFilter(v)}
+                    options={statusFilterOptions}
+                    placeholder="Tutti gli stati"
+                />
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none text-on-surface-variant ml-auto shrink-0">
                 <input
