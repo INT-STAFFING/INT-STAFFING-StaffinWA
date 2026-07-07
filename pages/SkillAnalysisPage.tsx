@@ -24,7 +24,6 @@ import { arc as d3Arc, lineRadial, curveLinearClosed, linkRadial as d3LinkRadial
 import { rgb } from 'd3-color';
 import { tree as d3Tree, hierarchy as d3Hierarchy, pack as d3Pack } from 'd3-hierarchy';
 import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
-import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ErrorBoundary from '../components/ErrorBoundary';
 import 'd3-transition';
@@ -711,10 +710,10 @@ const SkillAnalysisPage: React.FC = () => {
         resourceIds: [] as string[],
         roleIds: [] as string[],
         skillIds: [] as string[],
-        categoryId: '', 
-        macroCategoryId: '', 
+        categoryId: [] as string[],
+        macroCategoryId: [] as string[],
         displayMode: 'all' as DisplayMode,
-        location: ''
+        location: [] as string[]
     });
     const [hideEmptyRows, setHideEmptyRows] = useState(false);
 
@@ -735,13 +734,13 @@ const SkillAnalysisPage: React.FC = () => {
     const baseFilteredSkills = useMemo(() => {
         return skills.filter(s => {
             if (filters.skillIds.length > 0 && !filters.skillIds.includes(s.id!)) return false;
-            if (filters.categoryId) {
-                if (!s.categoryIds?.includes(filters.categoryId)) return false;
+            if (filters.categoryId.length > 0) {
+                if (!s.categoryIds?.some(catId => filters.categoryId.includes(catId))) return false;
             }
-            if (filters.macroCategoryId) {
+            if (filters.macroCategoryId.length > 0) {
                 const belongsToMacro = s.categoryIds?.some(catId => {
                     const cat = skillCategories.find(c => c.id === catId);
-                    return cat?.macroCategoryIds?.includes(filters.macroCategoryId);
+                    return cat?.macroCategoryIds?.some(mcId => filters.macroCategoryId.includes(mcId));
                 });
                 if (!belongsToMacro) return false;
             }
@@ -759,7 +758,7 @@ const SkillAnalysisPage: React.FC = () => {
             if (r.resigned) return false;
             const resMatch = filters.resourceIds.length === 0 || filters.resourceIds.includes(r.id!);
             const roleMatch = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
-            const locationMatch = !filters.location || r.location === filters.location;
+            const locationMatch = filters.location.length === 0 || filters.location.includes(r.location);
 
             if (hideEmptyRows || filters.displayMode === 'not_empty') {
                 const hasRelevantSkill = resourceSkills.some(rs => 
@@ -1159,12 +1158,12 @@ const SkillAnalysisPage: React.FC = () => {
                     <div className="md:col-span-1">
                         <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Ruoli"/>
                     </div>
-                    <SearchableSelect name="location" value={filters.location} onChange={(_, v) => setFilters(f => ({...f, location: v}))} options={locationOptions} placeholder="Sede"/>
+                    <MultiSelectDropdown name="location" selectedValues={filters.location} onChange={(_, v) => setFilters(f => ({...f, location: v}))} options={locationOptions} placeholder="Sede"/>
                     <div className="md:col-span-2">
                         <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Competenze"/>
                     </div>
-                    <SearchableSelect name="category" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
-                    <SearchableSelect name="macroCategory" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
+                    <MultiSelectDropdown name="category" selectedValues={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
+                    <MultiSelectDropdown name="macroCategory" selectedValues={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
                     <select className="form-select text-sm" value={filters.displayMode} onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}>
                         <option value="all">Tutti (Competenze e Cert.)</option>
                         <option value="skills_only">Solo Competenze (No Cert)</option>
@@ -1175,7 +1174,7 @@ const SkillAnalysisPage: React.FC = () => {
                         <input type="checkbox" id="hideEmptyRows" checked={hideEmptyRows} onChange={e => setHideEmptyRows(e.target.checked)} className="form-checkbox"/>
                         <label htmlFor="hideEmptyRows" className="text-xs text-on-surface whitespace-nowrap cursor-pointer select-none">Nascondi righe vuote</label>
                     </div>
-                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">Reset</button>
+                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], categoryId: [], macroCategoryId: [], displayMode: 'all', location: [] }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">Reset</button>
                 </div>
             </div>
 

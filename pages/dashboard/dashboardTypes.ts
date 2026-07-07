@@ -18,17 +18,17 @@ export type SelectOption = Option;
 
 /** Filtro per risorsa (es. AverageAllocationCard, SaturationTrend). */
 export interface ResourceFilter {
-    resourceId: string;
+    resourceId: string[];
 }
 
 /** Filtro per cliente (FTE, Budget). */
 export interface ClientFilter {
-    clientId: string;
+    clientId: string[];
 }
 
 /** Filtro per cliente con intervallo di date (Budget Temporale, Tariffa Media). */
 export interface ClientDateRangeFilter {
-    clientId: string;
+    clientId: string[];
     startDate: string;
     endDate: string;
 }

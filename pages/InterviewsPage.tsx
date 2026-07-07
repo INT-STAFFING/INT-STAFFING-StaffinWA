@@ -107,7 +107,7 @@ const InterviewsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInterview, setEditingInterview] = useState<Interview | Omit<Interview, 'id'> | null>(null);
     const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
-    const [filters, setFilters] = useState({ name: '', roleId: '', status: '', feedback: '' });
+    const [filters, setFilters] = useState({ name: '', roleId: [] as string[], status: [] as string[], feedback: [] as string[] });
 
     // Deep Linking
     useEffect(() => {
@@ -125,9 +125,9 @@ const InterviewsPage: React.FC = () => {
         return interviews
             .filter(i => 
                 (`${i.candidateName} ${i.candidateSurname}`).toLowerCase().includes(filters.name.toLowerCase()) &&
-                (!filters.roleId || i.roleId === filters.roleId) &&
-                (!filters.status || i.status === filters.status) &&
-                (!filters.feedback || i.feedback === filters.feedback)
+                (filters.roleId.length === 0 || filters.roleId.includes(i.roleId || '')) &&
+                (filters.status.length === 0 || filters.status.includes(i.status || '')) &&
+                (filters.feedback.length === 0 || filters.feedback.includes(i.feedback || ''))
             )
             .map(i => {
                 const req = resourceRequests.find(r => r.id === i.resourceRequestId);
@@ -429,10 +429,10 @@ const InterviewsPage: React.FC = () => {
                         <div className="md:col-span-1">
                             <input type="text" className="form-input" placeholder="Cerca candidato..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} />
                         </div>
-                        <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters({...filters, roleId: v})} options={roles.map(r => ({ value: r.id!, label: r.name }))} placeholder="Ruolo" />
-                        <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters({...filters, status: v})} options={[{value: 'Aperto', label: 'Aperto'}, {value: 'Chiuso', label: 'Chiuso'}, {value: 'StandBy', label: 'StandBy'}]} placeholder="Stato Processo" />
-                        <SearchableSelect name="feedback" value={filters.feedback} onChange={(_, v) => setFilters({...filters, feedback: v})} options={[{value: 'Positivo', label: 'Positivo'}, {value: 'Negativo', label: 'Negativo'}, {value: 'Positivo On Hold', label: 'On Hold'}]} placeholder="Feedback" />
-                        <button onClick={() => setFilters({ name: '', roleId: '', status: '', feedback: '' })} className="bg-secondary-container text-on-secondary-container py-3 px-6 rounded-full font-bold text-sm shadow-sm hover:opacity-90">Reset</button>
+                        <MultiSelectDropdown name="roleId" selectedValues={filters.roleId} onChange={(_, v) => setFilters({...filters, roleId: v})} options={roles.map(r => ({ value: r.id!, label: r.name }))} placeholder="Ruolo" />
+                        <MultiSelectDropdown name="status" selectedValues={filters.status} onChange={(_, v) => setFilters({...filters, status: v})} options={[{value: 'Aperto', label: 'Aperto'}, {value: 'Chiuso', label: 'Chiuso'}, {value: 'StandBy', label: 'StandBy'}]} placeholder="Stato Processo" />
+                        <MultiSelectDropdown name="feedback" selectedValues={filters.feedback} onChange={(_, v) => setFilters({...filters, feedback: v})} options={[{value: 'Positivo', label: 'Positivo'}, {value: 'Negativo', label: 'Negativo'}, {value: 'Positivo On Hold', label: 'On Hold'}]} placeholder="Feedback" />
+                        <button onClick={() => setFilters({ name: '', roleId: [], status: [], feedback: [] })} className="bg-secondary-container text-on-secondary-container py-3 px-6 rounded-full font-bold text-sm shadow-sm hover:opacity-90">Reset</button>
                     </div>
                 }
                 renderRow={renderRow}

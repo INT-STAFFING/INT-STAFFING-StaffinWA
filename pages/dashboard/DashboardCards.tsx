@@ -10,6 +10,7 @@ import { useHRContext } from '../../context/HRContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateFull } from '../../utils/dateUtils';
 import SearchableSelect from '../../components/SearchableSelect';
+import MultiSelectDropdown from '../../components/MultiSelectDropdown';
 import { Link } from 'react-router-dom';
 import { DashboardDataTable } from '../../components/DashboardDataTable';
 import { ColumnDef } from '../../components/DataTable';
@@ -299,7 +300,7 @@ export const AverageAllocationCard: React.FC<AverageAllocationCardProps> = ({ da
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Allocazione Media</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <div className="w-full sm:w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
+                    <div className="w-full sm:w-48"><MultiSelectDropdown name="resourceId" selectedValues={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Allocazione Media" />
                     <PdfExportButton title="Allocazione Media" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'currentMonth')} />
@@ -356,7 +357,7 @@ export const FtePerProjectCard: React.FC<FtePerProjectCardProps> = ({ data, filt
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">FTE per Progetto</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <div className="w-full sm:w-40"><MultiSelectDropdown name="clientId" selectedValues={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="FTE per Progetto" />
                     <PdfExportButton title="FTE per Progetto" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'fte')} />
@@ -416,7 +417,7 @@ export const BudgetAnalysisCard: React.FC<BudgetAnalysisCardProps> = ({ data, fi
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Analisi Budget</h2>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <div className="w-full sm:w-40"><MultiSelectDropdown name="clientId" selectedValues={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Budget" />
                     <PdfExportButton title="Analisi Budget" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
@@ -479,7 +480,7 @@ export const TemporalBudgetAnalysisCard: React.FC<TemporalBudgetAnalysisCardProp
                     <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end items-center">
                         <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
-                        <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                        <div className="w-full sm:w-40"><MultiSelectDropdown name="clientId" selectedValues={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                         <ExportButton data={exportData} title="Analisi Budget Temporale" />
                         <PdfExportButton title="Analisi Budget Temporale" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
@@ -545,7 +546,7 @@ export const AverageDailyRateCard: React.FC<AverageDailyRateCardProps> = ({ data
                     <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end items-center">
                         <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
-                        <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                        <div className="w-full sm:w-40"><MultiSelectDropdown name="clientId" selectedValues={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                         <ExportButton data={exportData} title="Tariffa Media Giornaliera" />
                         <PdfExportButton title="Tariffa Media Giornaliera" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'avgDailyRate')} />

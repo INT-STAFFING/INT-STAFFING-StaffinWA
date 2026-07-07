@@ -80,7 +80,7 @@ export const ProjectsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
+    const [filters, setFilters] = useState({ name: '', clientId: [] as string[], status: [] as string[] });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
     
     // State for Modals
@@ -107,11 +107,11 @@ export const ProjectsPage: React.FC = () => {
         const editId = searchParams.get('editId');
 
         if (projectId) {
-            setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: '', status: '' }));
+            setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: [], status: [] }));
             setShowOnlyUnstaffed(false);
             setSearchParams({});
         } else if (clientId) {
-            setFilters(prev => ({ ...prev, clientId, name: '', status: '' }));
+            setFilters(prev => ({ ...prev, clientId: [clientId], name: '', status: [] }));
             setShowOnlyUnstaffed(false);
             setSearchParams({});
         } else if (filter === 'unstaffed') {
@@ -167,8 +167,8 @@ export const ProjectsPage: React.FC = () => {
                     }
                 }
                 const nameMatch = project.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
-                const clientMatch = debouncedFilters.clientId ? project.clientId === debouncedFilters.clientId : true;
-                const statusMatch = debouncedFilters.status ? project.status === debouncedFilters.status : true;
+                const clientMatch = debouncedFilters.clientId.length === 0 || debouncedFilters.clientId.includes(project.clientId || '');
+                const statusMatch = debouncedFilters.status.length === 0 || debouncedFilters.status.includes(project.status || '');
                 return nameMatch && clientMatch && statusMatch;
             })
             .map(project => {
@@ -197,9 +197,9 @@ export const ProjectsPage: React.FC = () => {
     }, [dataForTable]);
     
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
+    const handleFilterSelectChange = (name: string, values: string[]) => setFilters(prev => ({ ...prev, [name]: values }));
     const resetFilters = () => {
-        setFilters({ name: '', clientId: '', status: '' });
+        setFilters({ name: '', clientId: [], status: [] });
         setShowOnlyUnstaffed(false);
     };
 
@@ -434,8 +434,8 @@ export const ProjectsPage: React.FC = () => {
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-            <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti" />
-            <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati" />
+            <MultiSelectDropdown name="clientId" selectedValues={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti" />
+            <MultiSelectDropdown name="status" selectedValues={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati" />
             <div className="flex items-center space-x-3">
                 <input type="checkbox" id="showOnlyUnstaffed" checked={showOnlyUnstaffed} onChange={(e) => setShowOnlyUnstaffed(e.target.checked)} className="form-checkbox" />
                 <label htmlFor="showOnlyUnstaffed" className="text-sm text-on-surface">Solo senza staff</label>

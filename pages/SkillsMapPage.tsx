@@ -56,12 +56,12 @@ const SkillsMapPage: React.FC = () => {
 
     // State
     const [view, setView] = useState<'table' | 'card'>('table');
-    const [filters, setFilters] = useState({ 
-        resourceId: '', 
-        roleIds: [] as string[], 
-        skillIds: [] as string[], 
-        categoryId: '', 
-        macroCategoryId: '', 
+    const [filters, setFilters] = useState({
+        resourceId: [] as string[],
+        roleIds: [] as string[],
+        skillIds: [] as string[],
+        categoryId: [] as string[],
+        macroCategoryId: [] as string[],
         displayMode: 'all' as DisplayMode
     });
     
@@ -152,19 +152,19 @@ const SkillsMapPage: React.FC = () => {
 
     const filteredResources = useMemo(() => {
         return allEnrichedResources.filter(r => {
-            const matchesRes = !filters.resourceId || r.id === filters.resourceId;
+            const matchesRes = filters.resourceId.length === 0 || filters.resourceId.includes(r.id!);
             const matchesRole = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
-            
+
             // Advanced Filtering using IDs
-            const matchesCategory = !filters.categoryId || r.computedSkills.some(cs => cs.skill.categoryIds?.includes(filters.categoryId));
-            
-            const matchesMacro = !filters.macroCategoryId || r.computedSkills.some(cs => {
+            const matchesCategory = filters.categoryId.length === 0 || r.computedSkills.some(cs => cs.skill.categoryIds?.some(catId => filters.categoryId.includes(catId)));
+
+            const matchesMacro = filters.macroCategoryId.length === 0 || r.computedSkills.some(cs => {
                 if (!cs.skill.categoryIds) return false;
-                // Check if any of the skill's categories belong to the selected macro
+                // Check if any of the skill's categories belong to a selected macro
                 return cs.skill.categoryIds.some(catId => {
                     const cat = skillCategories.find(c => c.id === catId);
-                    return cat?.macroCategoryIds?.includes(filters.macroCategoryId);
+                    return cat?.macroCategoryIds?.some(mcId => filters.macroCategoryId.includes(mcId));
                 });
             });
             
@@ -419,12 +419,12 @@ const SkillsMapPage: React.FC = () => {
     const filtersNode = (
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
+                <MultiSelectDropdown name="resourceId" selectedValues={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
                 <div className="flex-grow">
                     <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Filtra per Ruoli..."/>
                 </div>
-                <SearchableSelect name="macroCategoryId" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
-                <SearchableSelect name="categoryId" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
+                <MultiSelectDropdown name="macroCategoryId" selectedValues={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
+                <MultiSelectDropdown name="categoryId" selectedValues={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
                 
                 <div className="flex gap-2">
                     <div className="flex-grow">
@@ -452,7 +452,7 @@ const SkillsMapPage: React.FC = () => {
                     </div>
                  </div>
                  <div className="md:col-span-2">
-                    <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
+                    <button onClick={() => setFilters({ resourceId: [], roleIds: [], skillIds: [], categoryId: [], macroCategoryId: [], displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
                  </div>
             </div>
         </div>

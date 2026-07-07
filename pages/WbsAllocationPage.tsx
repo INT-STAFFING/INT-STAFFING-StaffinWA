@@ -12,7 +12,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { useAuth } from '../context/AuthContext';
 import { getWorkingDaysBetween, isHoliday, formatDate, formatDateFull } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ExportButton from '../components/ExportButton';
 import { SpinnerIcon } from '../components/icons';
 
@@ -192,7 +192,7 @@ export const WbsAllocationPage: React.FC = () => {
     const today = new Date();
     const [startDate, setStartDate] = useState(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 3, 0)).toISOString().split('T')[0]);
-    const [clientId, setClientId] = useState('');
+    const [clientId, setClientId] = useState<string[]>([]);
     const [searchText, setSearchText] = useState('');
     const [unit, setUnit] = useState<UnitType>('days');
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -242,7 +242,7 @@ export const WbsAllocationPage: React.FC = () => {
             if (!project) return;
             
             // Client Filter
-            if (clientId && project.clientId !== clientId) return;
+            if (clientId.length > 0 && !clientId.includes(project.clientId || '')) return;
 
             const resource = resources.find(r => r.id === assignment.resourceId);
             if (!resource || resource.resigned) return;
@@ -439,7 +439,7 @@ export const WbsAllocationPage: React.FC = () => {
                     </div>
                     <div className="md:col-span-1">
                         <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Cliente</label>
-                        <SearchableSelect name="clientId" value={clientId} onChange={(_, v) => setClientId(v)} options={clientOptions} placeholder="Tutti i Clienti" />
+                        <MultiSelectDropdown name="clientId" selectedValues={clientId} onChange={(_, v) => setClientId(v)} options={clientOptions} placeholder="Tutti i Clienti" />
                     </div>
                     <div className="md:col-span-1">
                         <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Cerca</label>

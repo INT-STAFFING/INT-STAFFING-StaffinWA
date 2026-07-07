@@ -10,7 +10,6 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
-import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -66,7 +65,7 @@ const CertificationsPage: React.FC = () => {
     });
 
     // Filter State
-    const [filters, setFilters] = useState({ name: '', categoryId: '', macroCategoryId: '' });
+    const [filters, setFilters] = useState({ name: '', categoryId: [] as string[], macroCategoryId: [] as string[] });
     const [searchParams, setSearchParams] = useSearchParams();
 
     const emptySkill: Omit<Skill, 'id'> = {
@@ -140,10 +139,10 @@ const CertificationsPage: React.FC = () => {
     const filteredData = useMemo(() => {
         return enrichedCertifications.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
-            const matchesCategory = !filters.categoryId || s.categoryIds?.includes(filters.categoryId);
-            const matchesMacro = !filters.macroCategoryId || (s.categoryIds && s.categoryIds.some(catId => {
+            const matchesCategory = filters.categoryId.length === 0 || s.categoryIds?.some(catId => filters.categoryId.includes(catId));
+            const matchesMacro = filters.macroCategoryId.length === 0 || (s.categoryIds && s.categoryIds.some(catId => {
                 const cat = skillCategories.find(c => c.id === catId);
-                return cat?.macroCategoryIds?.includes(filters.macroCategoryId);
+                return cat?.macroCategoryIds?.some(mcId => filters.macroCategoryId.includes(mcId));
             }));
             return nameMatch && matchesCategory && matchesMacro;
         });
@@ -315,10 +314,10 @@ const CertificationsPage: React.FC = () => {
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="text" placeholder="Cerca per nome..." className="form-input" value={filters.name} onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))} />
-            <SearchableSelect name="macroCategory" value={filters.macroCategoryId} onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategoryId: v }))} options={macroCategoryOptions} placeholder="Macro Area" />
-            <SearchableSelect name="category" value={filters.categoryId} onChange={(_, v) => setFilters(prev => ({ ...prev, categoryId: v }))} options={categoryOptions} placeholder="Ambito Specifico" />
+            <MultiSelectDropdown name="macroCategory" selectedValues={filters.macroCategoryId} onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategoryId: v }))} options={macroCategoryOptions} placeholder="Macro Area" />
+            <MultiSelectDropdown name="category" selectedValues={filters.categoryId} onChange={(_, v) => setFilters(prev => ({ ...prev, categoryId: v }))} options={categoryOptions} placeholder="Ambito Specifico" />
             <div className="flex gap-2">
-                <button onClick={() => setFilters({ name: '', categoryId: '', macroCategoryId: '' })} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full font-semibold">Reset</button>
+                <button onClick={() => setFilters({ name: '', categoryId: [], macroCategoryId: [] })} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full font-semibold">Reset</button>
             </div>
         </div>
     );

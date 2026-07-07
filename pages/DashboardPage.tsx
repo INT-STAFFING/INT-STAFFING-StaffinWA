@@ -78,18 +78,18 @@ const DashboardPage: React.FC = () => {
     }, [dashboardLayout, activeTab]);
 
     // Stati dei filtri per ogni card
-    const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
-    const [fteFilter, setFteFilter] = useState({ clientId: '' });
-    const [budgetFilter, setBudgetFilter] = useState({ clientId: '' });
-    
+    const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: [] as string[] });
+    const [fteFilter, setFteFilter] = useState({ clientId: [] as string[] });
+    const [budgetFilter, setBudgetFilter] = useState({ clientId: [] as string[] });
+
     // Corrected UTC date initialization for filters
     const [temporalBudgetFilter, setTemporalBudgetFilter] = useState({
-        clientId: '',
+        clientId: [] as string[],
         startDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10),
         endDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0)).toISOString().slice(0, 10),
     });
     const [avgDailyRateFilter, setAvgDailyRateFilter] = useState({
-        clientId: '',
+        clientId: [] as string[],
         startDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10),
         endDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0)).toISOString().slice(0, 10),
     });
@@ -190,8 +190,8 @@ const DashboardPage: React.FC = () => {
     }, [assignments, resources, roles, projects, allocations, companyCalendar, clients, activeResources, getRoleCost]);
 
     const averageAllocationData = useMemo(() => {
-        const filteredResources = avgAllocFilter.resourceId
-            ? activeResources.filter(r => r.id === avgAllocFilter.resourceId)
+        const filteredResources = avgAllocFilter.resourceId.length > 0
+            ? activeResources.filter(r => avgAllocFilter.resourceId.includes(r.id!))
             : activeResources;
 
         return filteredResources.map(resource => {
@@ -228,8 +228,8 @@ const DashboardPage: React.FC = () => {
     }, [activeResources, assignments, allocations, companyCalendar, avgAllocFilter]);
 
     const fteData = useMemo(() => {
-        const filteredProjects = fteFilter.clientId
-            ? projects.filter(p => p.clientId === fteFilter.clientId)
+        const filteredProjects = fteFilter.clientId.length > 0
+            ? projects.filter(p => fteFilter.clientId.includes(p.clientId || ''))
             : projects;
 
         return filteredProjects.map(project => {
@@ -262,8 +262,8 @@ const DashboardPage: React.FC = () => {
     }, [projects, assignments, allocations, companyCalendar, resources, fteFilter]);
 
     const budgetAnalysisData = useMemo(() => {
-        const filteredProjects = budgetFilter.clientId
-            ? projects.filter(p => p.clientId === budgetFilter.clientId)
+        const filteredProjects = budgetFilter.clientId.length > 0
+            ? projects.filter(p => budgetFilter.clientId.includes(p.clientId || ''))
             : projects;
 
         return filteredProjects.map(project => {
@@ -291,8 +291,8 @@ const DashboardPage: React.FC = () => {
     }, [projects, assignments, allocations, resources, roles, companyCalendar, budgetFilter, getRoleCost]);
 
     const temporalBudgetAnalysisData = useMemo(() => {
-        const filteredProjects = temporalBudgetFilter.clientId
-            ? projects.filter(p => p.clientId === temporalBudgetFilter.clientId)
+        const filteredProjects = temporalBudgetFilter.clientId.length > 0
+            ? projects.filter(p => temporalBudgetFilter.clientId.includes(p.clientId || ''))
             : projects;
     
         const filterStartDate = parseISODate(temporalBudgetFilter.startDate);
@@ -349,8 +349,8 @@ const DashboardPage: React.FC = () => {
     }, [projects, assignments, allocations, resources, roles, companyCalendar, temporalBudgetFilter, getRoleCost]);
 
     const averageDailyRateData = useMemo(() => {
-        const filteredProjects = avgDailyRateFilter.clientId
-            ? projects.filter(p => p.clientId === avgDailyRateFilter.clientId)
+        const filteredProjects = avgDailyRateFilter.clientId.length > 0
+            ? projects.filter(p => avgDailyRateFilter.clientId.includes(p.clientId || ''))
             : projects;
     
         const filterStartDate = parseISODate(avgDailyRateFilter.startDate);

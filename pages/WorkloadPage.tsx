@@ -12,7 +12,7 @@ import { useHRContext } from '../context/HRContext';
 import { useAuth } from '../context/AuthContext';
 import { Resource, Assignment, LeaveRequest, LeaveType, Role } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic } from '../utils/dateUtils';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import ExportButton from '../components/ExportButton';
@@ -167,7 +167,7 @@ const WorkloadPage: React.FC = () => {
     const companyCalendar = companyCalendar2;
     const { allocations } = useAllocationsContext();
     
-    const [filters, setFilters] = useState({ resourceId: '', roleId: '', function: '' });
+    const [filters, setFilters] = useState({ resourceId: [] as string[], roleId: [] as string[], function: [] as string[] });
     const [statusFilter, setStatusFilter] = useState<WorkloadFilterStatus>('ALL');
     
     const [currentPage, setCurrentPage] = useState(1);
@@ -294,9 +294,9 @@ const WorkloadPage: React.FC = () => {
     const displayData = useMemo(() => {
         let visibleResources = resources.filter((r) => r.resigned !== true);
         
-        if (filters.resourceId) visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
-        if (filters.roleId) visibleResources = visibleResources.filter(r => r.roleId === filters.roleId);
-        if (filters.function) visibleResources = visibleResources.filter(r => r.function === filters.function);
+        if (filters.resourceId.length > 0) visibleResources = visibleResources.filter(r => filters.resourceId.includes(r.id!));
+        if (filters.roleId.length > 0) visibleResources = visibleResources.filter(r => filters.roleId.includes(r.roleId));
+        if (filters.function.length > 0) visibleResources = visibleResources.filter(r => filters.function.includes(r.function));
         
         if (statusFilter !== 'ALL') {
             const firstCol = timeColumns[0];
@@ -385,8 +385,8 @@ const WorkloadPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.filter(r => r.resigned !== true).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
-    const handleFilterChange = (name: string, value: string) => {
-        setFilters(p => ({...p, [name]: value}));
+    const handleFilterChange = (name: string, values: string[]) => {
+        setFilters(p => ({...p, [name]: values}));
         setCurrentPage(1);
     };
 
@@ -558,9 +558,9 @@ const WorkloadPage: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte"/></div>
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti"/></div>
-                        <button onClick={() => { setFilters({ resourceId: '', roleId: '', function: '' }); setStatusFilter('ALL'); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><MultiSelectDropdown name="resourceId" selectedValues={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte"/></div>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><MultiSelectDropdown name="roleId" selectedValues={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti"/></div>
+                        <button onClick={() => { setFilters({ resourceId: [], roleId: [], function: [] }); setStatusFilter('ALL'); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
                     </div>
                 </div>
             </div>

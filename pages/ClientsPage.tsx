@@ -6,6 +6,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
@@ -24,7 +25,7 @@ const ClientsPage: React.FC = () => {
     const { isActionLoading, loading } = useAppState();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
-    const [filters, setFilters] = useState({ name: '', sector: '' });
+    const [filters, setFilters] = useState({ name: '', sector: [] as string[] });
     
     // Stati per la gestione della modifica inline.
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
@@ -63,7 +64,7 @@ const ClientsPage: React.FC = () => {
     const filteredClients = useMemo(() => {
         return clients.filter(client => {
             const nameMatch = client.name.toLowerCase().includes(filters.name.toLowerCase());
-            const sectorMatch = filters.sector ? client.sector === filters.sector : true;
+            const sectorMatch = filters.sector.length === 0 || filters.sector.includes(client.sector || '');
             return nameMatch && sectorMatch;
         });
     }, [clients, filters]);
@@ -77,8 +78,8 @@ const ClientsPage: React.FC = () => {
     }, [filteredClients]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ name: '', sector: '' });
+    const handleFilterSelectChange = (name: string, values: string[]) => setFilters(prev => ({ ...prev, [name]: values }));
+    const resetFilters = () => setFilters({ name: '', sector: [] });
 
     const openModalForNew = () => { setEditingClient(emptyClient); setIsModalOpen(true); };
     const openModalForEdit = (client: Client) => { setEditingClient(client); setIsModalOpen(true); handleCancelInlineEdit(); };
@@ -271,7 +272,7 @@ const ClientsPage: React.FC = () => {
     const filtersNode = (
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-            <SearchableSelect name="sector" value={filters.sector} onChange={handleFilterSelectChange} options={sectorOptions} placeholder="Tutti i settori" />
+            <MultiSelectDropdown name="sector" selectedValues={filters.sector} onChange={handleFilterSelectChange} options={sectorOptions} placeholder="Tutti i settori" />
             <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
         </div>
     );

@@ -8,7 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { Resource } from '../types';
-import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ExportButton from '../components/ExportButton';
 import { formatDateFull } from '../utils/dateUtils';
 
@@ -30,19 +30,19 @@ const GanttPage: React.FC = () => {
     const { resources } = useResourcesContext();
     const [zoom, setZoom] = useState<ZoomLevel>('month');
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-    const [filters, setFilters] = useState({ name: '', clientId: '' });
+    const [filters, setFilters] = useState({ name: '', clientId: [] as string[] });
     const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const handleFilterSelectChange = (name: string, value: string) => {
-        setFilters(prev => ({ ...prev, [name]: value }));
+    const handleFilterSelectChange = (name: string, values: string[]) => {
+        setFilters(prev => ({ ...prev, [name]: values }));
     };
 
     const resetFilters = () => {
-        setFilters({ name: '', clientId: '' });
+        setFilters({ name: '', clientId: [] });
     };
 
     const toggleSortDirection = () => {
@@ -207,7 +207,7 @@ const GanttPage: React.FC = () => {
         return projects
             .filter(p => {
                 const nameMatch = p.name.toLowerCase().includes(filters.name.toLowerCase());
-                const clientMatch = !filters.clientId || p.clientId === filters.clientId;
+                const clientMatch = filters.clientId.length === 0 || filters.clientId.includes(p.clientId || '');
                 return nameMatch && clientMatch;
             })
             .sort((a, b) => {
@@ -264,12 +264,12 @@ const GanttPage: React.FC = () => {
                     />
                 </div>
                 <div className="md:col-span-1">
-                    <SearchableSelect 
-                        name="clientId" 
-                        value={filters.clientId} 
-                        onChange={handleFilterSelectChange} 
-                        options={clientOptions} 
-                        placeholder="Tutti i Clienti" 
+                    <MultiSelectDropdown
+                        name="clientId"
+                        selectedValues={filters.clientId}
+                        onChange={handleFilterSelectChange}
+                        options={clientOptions}
+                        placeholder="Tutti i Clienti"
                     />
                 </div>
                 <div className="flex gap-2">

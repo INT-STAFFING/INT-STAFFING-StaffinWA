@@ -11,7 +11,6 @@ import { useSkillsContext } from '../context/SkillsContext';
 import { useAuth } from '../context/AuthContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
-import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -62,7 +61,7 @@ const SkillsPage: React.FC = () => {
     });
 
     // Filter State
-    const [filters, setFilters] = useState({ name: '', category: '', macroCategory: '', unusedOnly: false });
+    const [filters, setFilters] = useState({ name: '', category: [] as string[], macroCategory: [] as string[], unusedOnly: false });
     const [searchParams, setSearchParams] = useSearchParams();
 
     const emptySkill: Omit<Skill, 'id'> = {
@@ -134,8 +133,10 @@ const SkillsPage: React.FC = () => {
     const filteredSkills = useMemo(() => {
         return enrichedSkills.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
-            const catMatch = !filters.category || (s.category && s.category.includes(filters.category));
-            const macroMatch = !filters.macroCategory || (s.macroCategory && s.macroCategory.includes(filters.macroCategory));
+            const skillCategoryNames = s.category ? s.category.split(', ') : [];
+            const skillMacroCategoryNames = s.macroCategory ? s.macroCategory.split(', ') : [];
+            const catMatch = filters.category.length === 0 || filters.category.some(c => skillCategoryNames.includes(c));
+            const macroMatch = filters.macroCategory.length === 0 || filters.macroCategory.some(m => skillMacroCategoryNames.includes(m));
             const unusedMatch = !filters.unusedOnly || s.totalUsage === 0;
             return nameMatch && catMatch && macroMatch && unusedMatch;
         });
@@ -353,10 +354,10 @@ const SkillsPage: React.FC = () => {
                 <input type="text" placeholder="Cerca per nome..." className="form-input w-full" value={filters.name} onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}/>
             </div>
             <div className="md:col-span-2">
-                <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} options={macroCategoryFilterOptions} placeholder="Macro Ambito"/>
+                <MultiSelectDropdown name="macroCategory" selectedValues={filters.macroCategory} onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} options={macroCategoryFilterOptions} placeholder="Macro Ambito"/>
             </div>
             <div className="md:col-span-2">
-                <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} options={categoryFilterOptions} placeholder="Ambito"/>
+                <MultiSelectDropdown name="category" selectedValues={filters.category} onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} options={categoryFilterOptions} placeholder="Ambito"/>
             </div>
             <div className="md:col-span-2">
                  <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
@@ -369,7 +370,7 @@ const SkillsPage: React.FC = () => {
                     <span className="material-symbols-outlined text-lg">group_add</span>
                     <span className="hidden xl:inline text-sm">Assegna</span>
                 </button>
-                <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
+                <button onClick={() => setFilters({ name: '', category: [], macroCategory: [], unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
             </div>
         </div>
     );

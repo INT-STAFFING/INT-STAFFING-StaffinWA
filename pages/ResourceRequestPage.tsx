@@ -10,6 +10,7 @@ import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatDateFull } from '../utils/dateUtils';
@@ -120,7 +121,7 @@ export const ResourceRequestPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRequest, setEditingRequest] = useState<ResourceRequest | Omit<ResourceRequest, 'id'> | null>(null);
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
-    const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
+    const [filters, setFilters] = useState({ projectId: [] as string[], roleId: [] as string[], status: [] as string[], requestorId: [] as string[] });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [searchParams, setSearchParams] = useSearchParams();
     
@@ -159,10 +160,10 @@ export const ResourceRequestPage: React.FC = () => {
     const dataForTable = useMemo<EnrichedRequest[]>(() => {
         return resourceRequests
             .filter(req => 
-                (!filters.projectId || req.projectId === filters.projectId) &&
-                (!filters.roleId || req.roleId === filters.roleId) &&
-                (!filters.status || req.status === filters.status) &&
-                (!filters.requestorId || req.requestorId === filters.requestorId)
+                (filters.projectId.length === 0 || filters.projectId.includes(req.projectId || '')) &&
+                (filters.roleId.length === 0 || filters.roleId.includes(req.roleId || '')) &&
+                (filters.status.length === 0 || filters.status.includes(req.status || '')) &&
+                (filters.requestorId.length === 0 || filters.requestorId.includes(req.requestorId || ''))
             )
             .map(req => ({
                 ...req,
@@ -222,12 +223,12 @@ export const ResourceRequestPage: React.FC = () => {
         return { fteArray, projectArray };
     }, [dataForTable]);
 
-    const handleFilterChange = (name: string, value: string) => {
-        setFilters(prev => ({ ...prev, [name]: value }));
+    const handleFilterChange = (name: string, values: string[]) => {
+        setFilters(prev => ({ ...prev, [name]: values }));
     };
 
     const resetFilters = () => {
-        setFilters({ projectId: '', roleId: '', status: '', requestorId: '' });
+        setFilters({ projectId: [], roleId: [], status: [], requestorId: [] });
     };
 
     const openModalForNew = () => {
@@ -481,12 +482,12 @@ export const ResourceRequestPage: React.FC = () => {
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
-            <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
-            <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
+            <MultiSelectDropdown name="projectId" selectedValues={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
+            <MultiSelectDropdown name="roleId" selectedValues={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
+            <MultiSelectDropdown name="requestorId" selectedValues={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
             <div className="flex gap-2 w-full">
                 <div className="flex-grow">
-                    <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
+                    <MultiSelectDropdown name="status" selectedValues={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
                 </div>
                 <button aria-label="Azzera filtri" onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 font-bold transition-opacity"><span className="material-symbols-outlined text-base">refresh</span></button>
             </div>

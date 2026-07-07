@@ -25,17 +25,16 @@ export const searchArticles = (articles: KBArticle[], query: string): KBArticle[
 };
 
 export interface KBFilters {
-    format?: ContentFormat | '';
-    entityType?: LinkedEntityType | '';
+    format?: ContentFormat[];
+    entityType?: LinkedEntityType[];
 }
 
-/** Filtra le schede per formato e/o per tipo di entità collegata. */
+/** Filtra le schede per formato e/o per tipo di entità collegata (selezione multipla). */
 export const filterArticles = (articles: KBArticle[], filters: KBFilters): KBArticle[] => {
     return articles.filter(article => {
-        const formatMatch = filters.format ? article.format === filters.format : true;
-        const entityMatch = filters.entityType
-            ? article.linkedEntities.some(e => e.entityType === filters.entityType)
-            : true;
+        const formatMatch = !filters.format || filters.format.length === 0 || filters.format.includes(article.format);
+        const entityMatch = !filters.entityType || filters.entityType.length === 0
+            || article.linkedEntities.some(e => filters.entityType!.includes(e.entityType));
         return formatMatch && entityMatch;
     });
 };

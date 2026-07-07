@@ -79,24 +79,34 @@ describe('filterArticles', () => {
     });
 
     it('filtra per formato', () => {
-        const res = filterArticles(articles, { format: 'html' });
+        const res = filterArticles(articles, { format: ['html'] });
         expect(res.map(a => a.id)).toEqual(['a1', 'a3']);
     });
 
+    it('filtra per più formati selezionati (OR)', () => {
+        const res = filterArticles(articles, { format: ['html', 'plain'] });
+        expect(res).toHaveLength(3);
+    });
+
     it('filtra per tipo di entità collegata', () => {
-        const res = filterArticles(articles, { entityType: 'progetto' });
+        const res = filterArticles(articles, { entityType: ['progetto'] });
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe('a2');
     });
 
+    it('filtra per più tipi di entità collegata (OR)', () => {
+        const res = filterArticles(articles, { entityType: ['progetto', 'risorsa'] });
+        expect(res.map(a => a.id)).toEqual(['a1', 'a2']);
+    });
+
     it('combina formato ed entità collegata', () => {
-        const res = filterArticles(articles, { format: 'html', entityType: 'risorsa' });
+        const res = filterArticles(articles, { format: ['html'], entityType: ['risorsa'] });
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe('a1');
     });
 
-    it('ignora i filtri impostati a stringa vuota', () => {
-        expect(filterArticles(articles, { format: '', entityType: '' })).toHaveLength(3);
+    it('ignora i filtri impostati con array vuoto', () => {
+        expect(filterArticles(articles, { format: [], entityType: [] })).toHaveLength(3);
     });
 });
 
