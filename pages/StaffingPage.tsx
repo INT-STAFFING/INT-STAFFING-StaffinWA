@@ -20,7 +20,7 @@ import {
   formatDateFull,
   formatDateSynthetic
 } from '../utils/dateUtils';
-import { buildAllocationSnapshot } from '../utils/allocationUtils';
+import { buildAllocationSnapshot, isProjectVisibleInStaffing, shouldShowAssignmentInStaffing } from '../utils/allocationUtils';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -435,7 +435,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
   startDate: Date;
   endDate: Date;
 }> = React.memo(({ resource, startDate, endDate }) => {
-  const { assignments } = useProjectsContext();
+  const { assignments, projects } = useProjectsContext();
   const { companyCalendar } = useLookupContext();
   const { allocations } = useAllocationsContext();
 
@@ -454,7 +454,11 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     );
     if (workingDays === 0) return 0;
 
-    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
+    // Esclude le assegnazioni su progetti "Completato": non devono contribuire al carico visualizzato in Staffing.
+    const projectsById = new Map(projects.map((p) => [p.id, p]));
+    const resourceAssignments = assignments.filter(
+      (a) => a.resourceId === resource.id && isProjectVisibleInStaffing(projectsById.get(a.projectId))
+    );
     let totalPersonDays = 0;
 
     resourceAssignments.forEach((assignment) => {
@@ -479,7 +483,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     });
 
     return (totalPersonDays / workingDays) * 100;
-  }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
+  }, [resource, startDate, endDate, assignments, projects, allocations, companyCalendar]);
 
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
@@ -687,6 +691,9 @@ export const StaffingPage: React.FC = () => {
   const [diagnoseCell, setDiagnoseCell] = useState<{ resource: Resource; date: string; assignments: Assignment[] } | null>(null);
   const [newAssignmentData, setNewAssignmentData] = useState<AssignmentFormValues>({ resourceId: '', projectIds: [] });
 
+  // Visibilità assegnazioni con allocazione 0% (mai popolate): di default nascoste, attivabile dall'utente.
+  const [showZeroAllocationAssignments, setShowZeroAllocationAssignments] = useState(false);
+
   // Filters State (Input)
   const [filters, setFilters] = useState({ resourceId: [] as string[], projectId: [] as string[], clientId: [] as string[], projectManager: [] as string[] });
   // Debounced Filter State (For Logic)
@@ -847,8 +854,10 @@ export const StaffingPage: React.FC = () => {
   // --- Data Processing ---
   
   // 1. Filter Assignments based on Project/Client filters FIRST (Using DEBOUNCED filters)
+  // I progetti con stato "Completato" non devono mai comparire nella griglia di Staffing.
   const filteredAssignments = useMemo(() => {
       return assignments.filter(a =>
+        isProjectVisibleInStaffing(projectsById.get(a.projectId)) &&
         (debouncedFilters.projectId.length === 0 || debouncedFilters.projectId.includes(a.projectId)) &&
         (debouncedFilters.clientId.length === 0 || debouncedFilters.clientId.includes(projectsById.get(a.projectId)?.clientId || '')) &&
         (debouncedFilters.projectManager.length === 0 || debouncedFilters.projectManager.includes(projectsById.get(a.projectId)?.projectManager || ''))
@@ -887,8 +896,9 @@ export const StaffingPage: React.FC = () => {
   }, [displayResources, currentPage, itemsPerPage, isMobile]);
 
   // 5. Group Assignments by Resource (Only for visible ones)
-  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile,
-  // mantenendo però visibili quelle non ancora popolate (nessuna allocazione registrata).
+  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile.
+  // Le assegnazioni con allocazione 0% (mai popolate) sono nascoste di default e mostrate
+  // solo se l'utente attiva l'apposito toggle (showZeroAllocationAssignments).
   const assignmentsByResource = useMemo(() => {
       const map = new Map<string, Assignment[]>();
       const visibleIds = new Set(paginatedResources.map(r => r.id));
@@ -897,26 +907,11 @@ export const StaffingPage: React.FC = () => {
       const rangeStartStr = formatDate(timeColumns[0].startDate, 'iso');
       const rangeEndStr = formatDate(timeColumns[timeColumns.length - 1].endDate, 'iso');
 
-      const shouldShowAssignment = (assignmentId: string): boolean => {
-          const assignmentAllocs = allocations[assignmentId];
-          // Nessuna allocazione registrata: assegnazione non ancora popolata, mostrala.
-          if (!assignmentAllocs) return true;
-
-          let hasAnyNonZero = false;
-          for (const dateStr in assignmentAllocs) {
-              if (assignmentAllocs[dateStr] > 0) {
-                  hasAnyNonZero = true;
-                  if (dateStr >= rangeStartStr && dateStr <= rangeEndStr) {
-                      return true; // Allocazione > 0 nel periodo visibile.
-                  }
-              }
-          }
-          // Mostra solo se l'assegnazione non ha ancora ricevuto alcuna percentuale.
-          return !hasAnyNonZero;
-      };
-
       filteredAssignments.forEach(a => {
-          if (visibleIds.has(a.resourceId) && shouldShowAssignment(a.id!)) {
+          if (
+              visibleIds.has(a.resourceId) &&
+              shouldShowAssignmentInStaffing(allocations[a.id!], rangeStartStr, rangeEndStr, showZeroAllocationAssignments)
+          ) {
               if (!map.has(a.resourceId)) {
                   map.set(a.resourceId, []);
               }
@@ -924,7 +919,7 @@ export const StaffingPage: React.FC = () => {
           }
       });
       return map;
-  }, [filteredAssignments, paginatedResources, allocations, timeColumns]);
+  }, [filteredAssignments, paginatedResources, allocations, timeColumns, showZeroAllocationAssignments]);
 
   // 6. Pre-calculate Leaves Lookup (Only for visible resources & date range)
   const leavesLookup = useMemo(() => {
@@ -1047,9 +1042,13 @@ export const StaffingPage: React.FC = () => {
       () => resources.filter((r) => r.resigned !== true).map((r) => ({ value: r.id!, label: r.name })),
       [resources]
   );
-  const projectOptions: Option[] = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);
+  // Esclude i progetti "Completato": non hanno assegnazioni visibili in griglia, quindi non ha senso poterli filtrare.
+  const projectOptions: Option[] = useMemo(
+      () => projects.filter(isProjectVisibleInStaffing).map((p) => ({ value: p.id!, label: p.name })),
+      [projects]
+  );
   const activeProjectOptions: Option[] = useMemo(
-      () => projects.filter((p) => p.status !== 'Completato').map((p) => ({ value: p.id!, label: p.name })),
+      () => projects.filter(isProjectVisibleInStaffing).map((p) => ({ value: p.id!, label: p.name })),
       [projects]
   );
   const clientOptions: Option[] = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
@@ -1108,6 +1107,16 @@ export const StaffingPage: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"><span className="material-symbols-outlined mr-2 text-xl">add</span>Assegna Risorsa</button>
+              <button
+                  type="button"
+                  onClick={() => setShowZeroAllocationAssignments(prev => !prev)}
+                  aria-pressed={showZeroAllocationAssignments}
+                  title={showZeroAllocationAssignments ? 'Nascondi le assegnazioni senza allocazione (0%)' : 'Mostra anche le assegnazioni senza allocazione (0%)'}
+                  className={`flex items-center justify-center w-full md:w-auto px-6 py-2 font-semibold rounded-full shadow-sm border ${showZeroAllocationAssignments ? 'bg-secondary-container text-on-secondary-container border-transparent' : 'bg-surface border-outline text-on-surface hover:bg-surface-container-low'}`}
+              >
+                  <span className="material-symbols-outlined mr-2 text-xl">{showZeroAllocationAssignments ? 'visibility' : 'visibility_off'}</span>
+                  {showZeroAllocationAssignments ? 'Nascondi progetti a 0%' : 'Mostra progetti a 0%'}
+              </button>
               <ExportButton data={exportData} title="Staffing" />
           </div>
         </div>
