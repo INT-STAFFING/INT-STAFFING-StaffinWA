@@ -110,10 +110,14 @@ Questa è la pagina principale che fornisce una visione d'insieme dello stato de
 Pagina per la pianificazione dettagliata delle allocazioni.
 
 *   **Vista Principale:** Una griglia a due dimensioni con risorse/progetti sulle righe e il tempo sulle colonne. La prima colonna e l'intestazione sono fisse (`sticky`) per facilitare lo scrolling. La tabella utilizza la virtualizzazione per gestire un grande numero di righe in modo performante.
+*   **Visibilità Progetti:**
+    *   I progetti con stato **"Completato"** non compaiono mai nella griglia (né come righe di assegnazione né nel calcolo dei carichi totali, né tra le opzioni dei filtri).
+    *   Le assegnazioni con allocazione **0%** (mai popolate, o azzerate nel periodo visibile) sono **nascoste di default**. Un pulsante "Mostra/Nascondi progetti a 0%" nella toolbar permette di attivarne la visualizzazione su richiesta.
 *   **Controlli:**
     *   **Navigazione Temporale:** Pulsanti `← Prec.`, `Oggi`, `Succ. →`.
     *   **Selettore Vista:** `Giorno`, `Settimana`, `Mese`.
     *   **Filtri:** Per `Risorsa`, `Cliente`, `Project Manager`, `Progetto` tramite `SearchableSelect`.
+    *   **Toggle "Mostra/Nascondi progetti a 0%":** Attiva o disattiva la visualizzazione delle assegnazioni senza alcuna allocazione (default: nascoste).
 *   **Struttura Griglia:**
     *   **Master Row (Risorsa):** Riga in grassetto (`bg-gray-100 dark:bg-gray-900`). Mostra nome risorsa, ruolo, `maxStaffingPercentage` e un pulsante `➕` per aggiungere assegnazioni. Nelle colonne temporali, visualizza il carico totale.
     *   **Assignment Row (Progetto):** Riga per ogni progetto assegnato. Mostra nome progetto, cliente, PM e le azioni (`🗓️`, `❌`). Nelle colonne temporali, visualizza l'allocazione specifica per quel progetto.
