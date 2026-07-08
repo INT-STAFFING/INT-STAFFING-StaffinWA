@@ -148,6 +148,7 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // --- Resource Skills ---
     const addResourceSkill = useCallback(async (rs: ResourceSkill): Promise<void> => {
+        actionLoading(`addResourceSkill-${rs.resourceId}`, true);
         try {
             const savedSkill = await apiFetch<ResourceSkill>('/api/resources?entity=resource_skills', {
                 method: 'POST', body: JSON.stringify(rs)
@@ -159,8 +160,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         } catch (e: unknown) {
             addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta della competenza alla risorsa.', 'error');
             throw e;
+        } finally {
+            actionLoading(`addResourceSkill-${rs.resourceId}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const deleteResourceSkill = useCallback(async (resourceId: string, skillId: string): Promise<void> => {
         try {
@@ -180,7 +183,12 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const savedPs = await apiFetch<ProjectSkill>('/api/resources?entity=project_skills', {
                 method: 'POST', body: JSON.stringify(ps)
             });
-            setProjectSkills(prev => [...prev, savedPs]);
+            // Il server fa upsert (ON CONFLICT DO NOTHING): se la coppia esiste già,
+            // un append incondizionato duplicherebbe la riga nello stato client.
+            setProjectSkills(prev => [
+                ...prev.filter(i => !(i.projectId === ps.projectId && i.skillId === ps.skillId)),
+                savedPs
+            ]);
         } catch (e: unknown) {
             addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta della competenza al progetto.', 'error');
             throw e;

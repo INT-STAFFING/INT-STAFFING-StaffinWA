@@ -156,6 +156,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             addToast('Progetto aggiornato', 'success');
         } catch (e: unknown) {
             addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento del progetto.', 'error');
+            throw e;
         } finally {
             actionLoading(`updateProject-${project.id}`, false);
         }
@@ -331,8 +332,15 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         const linkedManagers = contractManagers.filter(cm => cm.contractId === id).map(cm => cm.resourceId);
         const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0);
         const newBacklog = Number(contract.capienza) - usedBudget;
-        await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, linkedManagers);
-    }, [contracts, contractProjects, contractManagers, projects, updateContract]);
+        actionLoading(`recalculateBacklog-${id}`, true);
+        try {
+            await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, linkedManagers);
+        } catch {
+            // toast già mostrato da updateContract; il click non gestisce la promise
+        } finally {
+            actionLoading(`recalculateBacklog-${id}`, false);
+        }
+    }, [contracts, contractProjects, contractManagers, projects, updateContract, actionLoading]);
 
     // --- Assegnazioni ---
     const addMultipleAssignments = useCallback(async (
@@ -352,23 +360,32 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [addToast]);
 
     const deleteAssignment = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteAssignment-${id}`, true);
         try {
             await apiFetch(`/api/staffing?action=assignment&id=${id}`, { method: 'DELETE' });
             setAssignments(prev => prev.filter(a => a.id !== id));
         } catch (e) {
             addToast('Errore durante l\'eliminazione dell\'assegnazione.', 'error');
+        } finally {
+            actionLoading(`deleteAssignment-${id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     // --- CRUD Billing Milestones ---
     const addBillingMilestone = useCallback(async (milestone: Omit<BillingMilestone, 'id'>): Promise<void> => {
+        actionLoading('addBillingMilestone', true);
         try {
             const created = await apiFetch<BillingMilestone>('/api/resources?entity=billing_milestones', {
                 method: 'POST', body: JSON.stringify(milestone)
             });
             setBillingMilestones(prev => [...prev, created]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della milestone.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiunta della milestone.', 'error');
+            throw e;
+        } finally {
+            actionLoading('addBillingMilestone', false);
+        }
+    }, [addToast, actionLoading]);
 
     const updateBillingMilestone = useCallback(async (milestone: BillingMilestone): Promise<void> => {
         try {
@@ -377,25 +394,37 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 { method: 'PUT', body: JSON.stringify(milestone) }
             );
             setBillingMilestones(prev => prev.map(m => m.id === milestone.id ? updated : m));
-        } catch (e) { addToast('Errore durante l\'aggiornamento della milestone.', 'error'); }
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento della milestone.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteBillingMilestone = useCallback(async (id: string): Promise<void> => {
         try {
             await apiFetch(`/api/resources?entity=billing_milestones&id=${id}`, { method: 'DELETE' });
             setBillingMilestones(prev => prev.filter(m => m.id !== id));
-        } catch (e) { addToast('Errore durante l\'eliminazione della milestone.', 'error'); }
+        } catch (e) {
+            addToast('Errore durante l\'eliminazione della milestone.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     // --- CRUD Project Expenses ---
     const addProjectExpense = useCallback(async (expense: Omit<ProjectExpense, 'id'>): Promise<void> => {
+        actionLoading('addProjectExpense', true);
         try {
             const created = await apiFetch<ProjectExpense>('/api/resources?entity=project_expenses', {
                 method: 'POST', body: JSON.stringify(expense)
             });
             setProjectExpenses(prev => [...prev, created]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della spesa.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiunta della spesa.', 'error');
+            throw e;
+        } finally {
+            actionLoading('addProjectExpense', false);
+        }
+    }, [addToast, actionLoading]);
 
     const updateProjectExpense = useCallback(async (expense: ProjectExpense): Promise<void> => {
         try {
@@ -404,53 +433,86 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 { method: 'PUT', body: JSON.stringify(expense) }
             );
             setProjectExpenses(prev => prev.map(e => e.id === expense.id ? updated : e));
-        } catch (e) { addToast('Errore durante l\'aggiornamento della spesa.', 'error'); }
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento della spesa.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteProjectExpense = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteProjectExpense-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=project_expenses&id=${id}`, { method: 'DELETE' });
             setProjectExpenses(prev => prev.filter(e => e.id !== id));
-        } catch (e) { addToast('Errore durante l\'eliminazione della spesa.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'eliminazione della spesa.', 'error');
+            throw e;
+        } finally {
+            actionLoading(`deleteProjectExpense-${id}`, false);
+        }
+    }, [addToast, actionLoading]);
 
     // --- CRUD Rate Cards ---
     const addRateCard = useCallback(async (rateCard: Omit<RateCard, 'id'>): Promise<void> => {
+        actionLoading('addRateCard', true);
         try {
             const created = await apiFetch<RateCard>('/api/resources?entity=rate_cards', {
                 method: 'POST', body: JSON.stringify(rateCard)
             });
             setRateCards(prev => [...prev, created]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della rate card.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiunta della rate card.', 'error');
+            throw e;
+        } finally {
+            actionLoading('addRateCard', false);
+        }
+    }, [addToast, actionLoading]);
 
     const updateRateCard = useCallback(async (rateCard: RateCard): Promise<void> => {
+        actionLoading('updateRateCard', true);
         try {
             const updated = await apiFetch<RateCard>(
                 `/api/resources?entity=rate_cards&id=${rateCard.id}`,
                 { method: 'PUT', body: JSON.stringify(rateCard) }
             );
             setRateCards(prev => prev.map(r => r.id === rateCard.id ? updated : r));
-        } catch (e) { addToast('Errore durante l\'aggiornamento della rate card.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento della rate card.', 'error');
+            throw e;
+        } finally {
+            actionLoading('updateRateCard', false);
+        }
+    }, [addToast, actionLoading]);
 
     const deleteRateCard = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteRateCard-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=rate_cards&id=${id}`, { method: 'DELETE' });
             setRateCards(prev => prev.filter(r => r.id !== id));
-        } catch (e) { addToast('Errore durante l\'eliminazione della rate card.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'eliminazione della rate card.', 'error');
+            throw e;
+        } finally {
+            actionLoading(`deleteRateCard-${id}`, false);
+        }
+    }, [addToast, actionLoading]);
 
     const upsertRateCardEntries = useCallback(async (entries: RateCardEntry[]): Promise<void> => {
         if (entries.length === 0) return;
+        actionLoading('upsertRateCardEntries', true);
         try {
             await apiFetch('/api/resources?entity=rate_card_entries', {
                 method: 'POST', body: JSON.stringify({ entries })
             });
             const entriesRes = await apiFetch<RateCardEntry[]>('/api/resources?entity=rate_card_entries');
             setRateCardEntries(entriesRes || []);
-        } catch (e) { addToast('Errore durante l\'aggiornamento delle tariffe.', 'error'); }
-    }, [addToast]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento delle tariffe.', 'error');
+            throw e;
+        } finally {
+            actionLoading('upsertRateCardEntries', false);
+        }
+    }, [addToast, actionLoading]);
 
     // --- Utility ---
     const getSellRate = useCallback((rateCardId: string | null | undefined, resourceId: string): number => {

@@ -7,7 +7,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useLookupContext } from '../context/LookupContext';
-import { useToast } from '../context/ToastContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { ConfigOption, LeaveType, SkillCategory, SkillMacroCategory } from '../types';
 import Modal from '../components/Modal';
@@ -26,7 +25,6 @@ interface ConfigSectionProps {
 const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, options }) => {
     const { addConfigOption, updateConfigOption, deleteConfigOption } = useLookupContext();
     const { isActionLoading } = useAppState();
-    const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOption, setEditingOption] = useState<ConfigOption | { value: string } | null>(null);
 
@@ -51,7 +49,7 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                 }
                 handleCloseModal();
             } catch (e) {
-                addToast('Errore durante il salvataggio della configurazione.', 'error');
+                // toast di errore già mostrato dal contesto; la modale resta aperta
             }
         }
     };
@@ -118,6 +116,7 @@ const SkillConfigSection: React.FC = () => {
     } = useSkillsContext();
     const [modalMode, setModalMode] = useState<'cat' | 'macro' | null>(null);
     const [editingItem, setEditingItem] = useState<any>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const openMacroModal = (macro?: any) => { setEditingItem(macro || { name: '' }); setModalMode('macro'); };
     const openCatModal = (cat?: any) => { setEditingItem(cat || { name: '', macroCategoryIds: [] }); setModalMode('cat'); };
@@ -125,16 +124,30 @@ const SkillConfigSection: React.FC = () => {
 
     const handleMacroSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (editingItem.id) await updateSkillMacro(editingItem.id, editingItem.name);
-        else await addSkillMacro({ name: editingItem.name });
-        closeModal();
+        setIsSaving(true);
+        try {
+            if (editingItem.id) await updateSkillMacro(editingItem.id, editingItem.name);
+            else await addSkillMacro({ name: editingItem.name });
+            closeModal();
+        } catch {
+            // toast di errore già mostrato dal contesto; la modale resta aperta
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleCatSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (editingItem.id) await updateSkillCategory(editingItem);
-        else await addSkillCategory(editingItem);
-        closeModal();
+        setIsSaving(true);
+        try {
+            if (editingItem.id) await updateSkillCategory(editingItem);
+            else await addSkillCategory(editingItem);
+            closeModal();
+        } catch {
+            // toast di errore già mostrato dal contesto; la modale resta aperta
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const macroOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })), [skillMacroCategories]);
@@ -183,6 +196,47 @@ const SkillConfigSection: React.FC = () => {
                     </ul>
                 </div>
             </div>
+
+            {modalMode && editingItem && (
+                <Modal
+                    isOpen={!!modalMode}
+                    onClose={closeModal}
+                    title={
+                        modalMode === 'macro'
+                            ? (editingItem.id ? 'Modifica Macro Ambito' : 'Aggiungi Macro Ambito')
+                            : (editingItem.id ? 'Modifica Ambito' : 'Aggiungi Ambito')
+                    }
+                >
+                    <form onSubmit={modalMode === 'macro' ? handleMacroSubmit : handleCatSubmit}>
+                        <label className="block text-sm font-medium mb-2 text-on-surface-variant">Nome *</label>
+                        <input
+                            type="text"
+                            value={editingItem.name}
+                            onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                            required
+                            className="w-full form-input"
+                        />
+                        {modalMode === 'cat' && (
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium mb-2 text-on-surface-variant">Macro Ambiti associati</label>
+                                <MultiSelectDropdown
+                                    name="macroCategoryIds"
+                                    selectedValues={editingItem.macroCategoryIds || []}
+                                    onChange={(_, values) => setEditingItem({ ...editingItem, macroCategoryIds: values })}
+                                    options={macroOptions}
+                                    placeholder="Seleziona uno o più macro ambiti"
+                                />
+                            </div>
+                        )}
+                        <div className="flex justify-end space-x-2 pt-5">
+                            <button type="button" onClick={closeModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isSaving} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 };

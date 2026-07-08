@@ -39,7 +39,7 @@ export const BillingPlanModal: React.FC<{
         try {
             await updateProject({ ...project, billingType });
             addToast('Tipo di fatturazione aggiornato', 'success');
-        } catch (e) { addToast('Errore aggiornamento', 'error'); }
+        } catch (e) { /* toast di errore già mostrato dal contesto */ }
     };
 
     const handleAddMilestone = async (e: React.FormEvent) => {
@@ -48,20 +48,20 @@ export const BillingPlanModal: React.FC<{
             await addBillingMilestone({ ...newMilestone, projectId: project.id! });
             setNewMilestone({ name: '', date: new Date().toISOString().split('T')[0], amount: 0, status: 'PLANNED' });
             addToast('Milestone aggiunta', 'success');
-        } catch (e) { addToast('Errore aggiunta milestone', 'error'); }
+        } catch (e) { /* toast di errore già mostrato dal contesto */ }
     };
 
     const handleDeleteMilestone = async (id: string) => {
         try {
             await deleteBillingMilestone(id);
             addToast('Milestone rimossa', 'success');
-        } catch (e) { addToast('Errore rimozione', 'error'); }
+        } catch (e) { /* toast di errore già mostrato dal contesto */ }
     };
 
     const handleUpdateMilestoneStatus = async (ms: BillingMilestone, newStatus: MilestoneStatus) => {
         try {
             await updateBillingMilestone({ ...ms, status: newStatus });
-        } catch (e) { addToast('Errore aggiornamento stato', 'error'); }
+        } catch (e) { /* toast di errore già mostrato dal contesto */ }
     };
 
     const totalMilestoneAmount = milestones.reduce((sum, m) => sum + Number(m.amount), 0);
