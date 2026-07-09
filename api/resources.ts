@@ -659,6 +659,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({ success: true });
             }
 
+            // Notifiche: mark_read singola o massiva. Consentita a qualsiasi utente
+            // autenticato: opera solo sull'inbox personale, non su dati gestionali.
+            if (tableName === 'notifications' && action === 'mark_read') {
+                if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
+                if (id) {
+                    await client.query(`UPDATE notifications SET is_read = TRUE WHERE id = $1`, [id]);
+                    return res.status(200).json({ success: true });
+                }
+                // Bulk: limita alle notifiche del destinatario corrente; quelle senza
+                // destinatario sono broadcast. Un utente senza risorsa collegata vede
+                // l'intera inbox, quindi marca tutto (comportamento storico).
+                const userRow = await client.query(`SELECT resource_id FROM app_users WHERE id = $1`, [currentUser.id]).catch(() => ({ rows: [] as any[] }));
+                const currentUserResourceId = userRow.rows[0]?.resource_id || null;
+                if (currentUserResourceId) {
+                    await client.query(
+                        `UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE AND (recipient_resource_id = $1 OR recipient_resource_id IS NULL)`,
+                        [currentUserResourceId]
+                    );
+                } else {
+                    await client.query(`UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE`);
+                }
+                return res.status(200).json({ success: true });
+            }
+
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
             // Layer 3: verifica visibilità entità anche per aggiornamento
             if (!(await checkEntityVisibility())) {

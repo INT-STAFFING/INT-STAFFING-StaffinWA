@@ -8,8 +8,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/AppContext';
-import { useUIConfigContext } from '../context/UIConfigContext';
 import { useAuth } from '../context/AuthContext';
+import { useVisibleNotifications } from '../hooks/useVisibleNotifications';
 import { useTheme } from '../context/ThemeContext';
 
 const IconButton: React.FC<{
@@ -36,7 +36,7 @@ const IconButton: React.FC<{
 
 const HeaderActions: React.FC = () => {
     const { setSearchOpen } = useAppState();
-    const { notifications } = useUIConfigContext();
+    const notifications = useVisibleNotifications();
     const { user, logout } = useAuth();
     const { mode, toggleMode } = useTheme();
     const navigate = useNavigate();

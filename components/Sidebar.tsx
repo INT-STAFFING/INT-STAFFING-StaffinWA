@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppState } from '../context/AppContext';
 import { useUIConfigContext } from '../context/UIConfigContext';
+import { useVisibleNotifications } from '../hooks/useVisibleNotifications';
 import { useRoutesManifest } from '../context/RoutesContext';
 import type { AppRoute } from '../routes';
 import type { SidebarFooterAction } from '../types';
@@ -36,7 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const user = useAuth().user;
     const changePassword = useAuth().changePassword;
     const hasPermission = useAuth().hasPermission;
-    const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useUIConfigContext();
+    const { sidebarSections, sidebarSectionColors, sidebarFooterActions } = useUIConfigContext();
+    const notifications = useVisibleNotifications();
     const { navigationRoutes, homePath } = useRoutesManifest();
     const { setSearchOpen } = useAppState();
 
