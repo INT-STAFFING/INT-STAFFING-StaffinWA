@@ -101,33 +101,50 @@ export const LookupProvider: React.FC<{
 
     // --- CRUD Opzioni di Configurazione ---
     const addConfigOption = useCallback(async (type: string, value: string): Promise<void> => {
+        actionLoading(`addConfig-${type}`, true);
         try {
             const newOpt = await apiFetch<ConfigOption>(`/api/config?type=${type}`, {
                 method: 'POST', body: JSON.stringify({ value })
             });
             const setter = getConfigSetter(type, setterMap);
             setter(prev => [...prev, newOpt]);
-        } catch (e) { addToast('Errore durante l\'aggiunta dell\'opzione.', 'error'); }
-    }, [addToast, setterMap]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiunta dell\'opzione.', 'error');
+            throw e;
+        } finally {
+            actionLoading(`addConfig-${type}`, false);
+        }
+    }, [addToast, setterMap, actionLoading]);
 
     const updateConfigOption = useCallback(async (type: string, option: ConfigOption): Promise<void> => {
+        actionLoading(`updateConfig-${type}-${option.id}`, true);
         try {
             await apiFetch(`/api/config?type=${type}&id=${option.id}`, {
                 method: 'PUT', body: JSON.stringify({ value: option.value })
             });
             const setter = getConfigSetter(type, setterMap);
             setter(prev => prev.map(o => o.id === option.id ? option : o));
-        } catch (e) { addToast('Errore durante l\'aggiornamento dell\'opzione.', 'error'); }
-    }, [addToast, setterMap]);
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento dell\'opzione.', 'error');
+            throw e;
+        } finally {
+            actionLoading(`updateConfig-${type}-${option.id}`, false);
+        }
+    }, [addToast, setterMap, actionLoading]);
 
     const deleteConfigOption = useCallback(async (type: string, id: string): Promise<void> => {
+        actionLoading(`deleteConfig-${type}-${id}`, true);
         try {
             await apiFetch(`/api/config?type=${type}&id=${id}`, { method: 'DELETE' });
             const setter = getConfigSetter(type, setterMap);
             setter(prev => prev.filter(o => o.id !== id));
             addToast('Opzione eliminata con successo', 'success');
-        } catch (e) { addToast('Errore durante l\'eliminazione dell\'opzione.', 'error'); }
-    }, [addToast, setterMap]);
+        } catch (e) {
+            addToast('Errore durante l\'eliminazione dell\'opzione.', 'error');
+        } finally {
+            actionLoading(`deleteConfig-${type}-${id}`, false);
+        }
+    }, [addToast, setterMap, actionLoading]);
 
     // --- CRUD Calendario Aziendale ---
     const addCalendarEvent = useCallback(async (event: Omit<CalendarEvent, 'id'>): Promise<void> => {

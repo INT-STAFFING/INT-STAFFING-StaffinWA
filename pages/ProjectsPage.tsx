@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { getErrorMessage } from '../utils/getErrorMessage';
 import { useAppState, useCascadeOps } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
@@ -260,7 +259,7 @@ export const ProjectsPage: React.FC = () => {
                 }
                 handleCloseModal();
             } catch (e: unknown) {
-                addToast(getErrorMessage(e) || 'Errore durante il salvataggio del progetto.', 'error');
+                // toast di errore già mostrato dal contesto; la modale resta aperta per il retry
             }
         }
     };
@@ -302,7 +301,7 @@ export const ProjectsPage: React.FC = () => {
                 await updateProject(projectPayload as Project);
                 handleCancelInlineEdit();
             } catch (e: unknown) {
-                addToast(getErrorMessage(e) || 'Errore durante il salvataggio.', 'error');
+                // toast di errore già mostrato dal contesto
             }
         }
     };

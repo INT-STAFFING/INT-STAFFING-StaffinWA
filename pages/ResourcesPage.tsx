@@ -331,6 +331,9 @@ const ResourcesPage: React.FC = () => {
             } else {
                 const newResource = await addResource(resourcePayload as Omit<Resource, 'id'>);
                 resourceId = newResource.id!;
+                // Se la sync delle skill qui sotto fallisce, un nuovo "Salva" deve
+                // aggiornare la risorsa appena creata, non crearne un duplicato.
+                setEditingResource({ ...editingResource, id: newResource.id, version: newResource.version } as Resource);
             }
 
             const oldSkills = resourceSkills.filter(rs => rs.resourceId === resourceId).map(rs => rs.skillId);

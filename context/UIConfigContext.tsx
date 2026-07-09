@@ -203,8 +203,11 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
             setNotifications(prev => prev.map(n =>
                 id ? (n.id === id ? { ...n, isRead: true } : n) : { ...n, isRead: true }
             ));
-        } catch (e) { console.error('Errore durante la lettura della notifica', e); }
-    }, []);
+        } catch (e) {
+            console.error('Errore durante la lettura della notifica', e);
+            addToast('Errore durante l\'aggiornamento delle notifiche.', 'error');
+        }
+    }, [addToast]);
 
     // --- Creazione notifica ---
     const createNotification = useCallback(async (notification: Omit<Notification, 'id'>): Promise<void> => {

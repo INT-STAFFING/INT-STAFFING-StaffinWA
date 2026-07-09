@@ -91,7 +91,7 @@ export default function RateCardsPage() {
             }
             setIsMasterModalOpen(false);
         } catch (err) {
-            addToast('Errore nel salvataggio', 'error');
+            // toast di errore già mostrato dal contesto
         }
     };
 
@@ -103,7 +103,7 @@ export default function RateCardsPage() {
                 if (selectedCardId === cardToDelete.id) setSelectedCardId(null);
                 addToast('Listino eliminato', 'success');
             } catch (err) {
-                addToast('Errore eliminazione', 'error');
+                // toast di errore già mostrato dal contesto
             }
         }
     };
@@ -138,7 +138,7 @@ export default function RateCardsPage() {
             setHasChanges(false);
             addToast('Tariffe aggiornate con successo', 'success');
         } catch (err) {
-            addToast('Errore aggiornamento tariffe', 'error');
+            // toast di errore già mostrato dal contesto
         }
     };
 

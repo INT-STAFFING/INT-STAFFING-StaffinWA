@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useUIConfigContext } from '../context/UIConfigContext';
+import { useVisibleNotifications } from '../hooks/useVisibleNotifications';
 import { useNavigate } from 'react-router-dom';
 
 const formatDate = (dateString: string) => {
@@ -19,7 +20,8 @@ const formatDate = (dateString: string) => {
 };
 
 const NotificationsPage: React.FC = () => {
-    const { notifications, markNotificationAsRead } = useUIConfigContext();
+    const { markNotificationAsRead } = useUIConfigContext();
+    const notifications = useVisibleNotifications();
     const navigate = useNavigate();
     const [filter, setFilter] = useState<'all' | 'unread'>('unread');
 

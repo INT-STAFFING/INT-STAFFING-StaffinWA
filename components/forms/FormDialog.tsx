@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Modal from '../Modal';
 // FIX: Using relative path for custom zod implementation.
 import { z } from '../../libs/zod';
@@ -30,6 +30,16 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 }) => {
     const [values, setValues] = useState(defaultValues);
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Il dialog resta montato tra un'apertura e l'altra: senza questa
+    // risincronizzazione i defaultValues nuovi (es. risorsa preselezionata,
+    // reset del form) non arriverebbero mai allo stato interno.
+    useEffect(() => {
+        if (isOpen) {
+            setValues(defaultValues);
+            setErrors({});
+        }
+    }, [isOpen, defaultValues]);
 
     const handleChange = (name: string, value: any) => {
         setValues((prev: any) => ({ ...prev, [name]: value }));

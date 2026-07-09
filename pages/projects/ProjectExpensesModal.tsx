@@ -46,7 +46,7 @@ export const ProjectExpensesModal: React.FC<{
             addToast('Spesa aggiunta', 'success');
             setNewExpense({ category: 'Altro', description: '', amount: 0, date: new Date().toISOString().split('T')[0], billable: false });
         } catch (err) {
-            addToast('Errore aggiunta spesa', 'error');
+            // toast di errore già mostrato dal contesto
         }
     };
 
@@ -56,7 +56,7 @@ export const ProjectExpensesModal: React.FC<{
                 await deleteProjectExpense(expenseToDelete.id!);
                 addToast('Spesa eliminata', 'success');
             } catch (err) {
-                addToast('Errore eliminazione', 'error');
+                // toast di errore già mostrato dal contesto
             } finally {
                 setExpenseToDelete(null);
             }
