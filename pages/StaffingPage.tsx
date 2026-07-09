@@ -693,6 +693,9 @@ export const StaffingPage: React.FC = () => {
 
   // Visibilità assegnazioni con allocazione 0% (mai popolate): di default nascoste, attivabile dall'utente.
   const [showZeroAllocationAssignments, setShowZeroAllocationAssignments] = useState(false);
+  // Assegnazioni create in questa sessione: sempre visibili anche a 0%, altrimenti
+  // sparirebbero dalla griglia un attimo dopo la creazione, prima di poterle popolare.
+  const [forcedVisibleAssignmentIds, setForcedVisibleAssignmentIds] = useState<Set<string>>(() => new Set());
 
   // Filters State (Input)
   const [filters, setFilters] = useState({ resourceId: [] as string[], projectId: [] as string[], clientId: [] as string[], projectManager: [] as string[] });
@@ -829,12 +832,21 @@ export const StaffingPage: React.FC = () => {
       addToast('Assegnazione massiva annullata.', 'success');
       setLastBulkUndo(null);
   }, [lastBulkUndo, applyAllocationUpdates, addToast]);
-  const handleNewAssignmentSubmit = (values: AssignmentFormValues) => {
+  const handleNewAssignmentSubmit = async (values: AssignmentFormValues) => {
       if (values.resourceId && values.projectIds.length > 0) {
           const assignmentsToCreate = values.projectIds.map(projectId => ({ resourceId: values.resourceId, projectId }));
-          addMultipleAssignments(assignmentsToCreate);
           setNewAssignmentData(values);
           setAssignmentModalOpen(false);
+          const touched = await addMultipleAssignments(assignmentsToCreate);
+          // Forza la visibilità delle assegnazioni appena create (o già esistenti ma
+          // nascoste perché a 0%): l'utente deve vederle subito per popolarle.
+          if (touched.length > 0) {
+              setForcedVisibleAssignmentIds(prev => {
+                  const next = new Set(prev);
+                  touched.forEach(a => { if (a.id) next.add(a.id); });
+                  return next;
+              });
+          }
       }
   };
   
@@ -896,22 +908,32 @@ export const StaffingPage: React.FC = () => {
   }, [displayResources, currentPage, itemsPerPage, isMobile]);
 
   // 5. Group Assignments by Resource (Only for visible ones)
-  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile.
-  // Le assegnazioni con allocazione 0% (mai popolate) sono nascoste di default e mostrate
-  // solo se l'utente attiva l'apposito toggle (showZeroAllocationAssignments).
+  // Le assegnazioni con allocazione 0% (mai popolate) sono nascoste di default e mostrate:
+  // - se l'utente attiva l'apposito toggle (showZeroAllocationAssignments);
+  // - se l'assegnazione rientra in un filtro esplicito attivo (risorsa, progetto,
+  //   cliente o PM): chi filtra vuole vedere TUTTO lo staffing di quel perimetro,
+  //   altrimenti la griglia mostra i totali della risorsa senza le righe che li spiegano;
+  // - se è stata appena creata in questa sessione (forcedVisibleAssignmentIds).
   const assignmentsByResource = useMemo(() => {
       const map = new Map<string, Assignment[]>();
       const visibleIds = new Set(paginatedResources.map(r => r.id));
 
-      if (timeColumns.length === 0) return map;
-      const rangeStartStr = formatDate(timeColumns[0].startDate, 'iso');
-      const rangeEndStr = formatDate(timeColumns[timeColumns.length - 1].endDate, 'iso');
+      const matchesActiveFilter = (a: Assignment): boolean => {
+          if (debouncedFilters.projectId.includes(a.projectId)) return true;
+          if (debouncedFilters.resourceId.includes(a.resourceId)) return true;
+          const project = projectsById.get(a.projectId);
+          if (project?.clientId && debouncedFilters.clientId.includes(project.clientId)) return true;
+          if (project?.projectManager && debouncedFilters.projectManager.includes(project.projectManager)) return true;
+          return false;
+      };
 
       filteredAssignments.forEach(a => {
-          if (
-              visibleIds.has(a.resourceId) &&
-              shouldShowAssignmentInStaffing(allocations[a.id!], rangeStartStr, rangeEndStr, showZeroAllocationAssignments)
-          ) {
+          if (!visibleIds.has(a.resourceId)) return;
+          const isVisible =
+              (a.id && forcedVisibleAssignmentIds.has(a.id)) ||
+              matchesActiveFilter(a) ||
+              shouldShowAssignmentInStaffing(allocations[a.id!], showZeroAllocationAssignments);
+          if (isVisible) {
               if (!map.has(a.resourceId)) {
                   map.set(a.resourceId, []);
               }
@@ -919,7 +941,7 @@ export const StaffingPage: React.FC = () => {
           }
       });
       return map;
-  }, [filteredAssignments, paginatedResources, allocations, timeColumns, showZeroAllocationAssignments]);
+  }, [filteredAssignments, paginatedResources, allocations, showZeroAllocationAssignments, debouncedFilters, projectsById, forcedVisibleAssignmentIds]);
 
   // 6. Pre-calculate Leaves Lookup (Only for visible resources & date range)
   const leavesLookup = useMemo(() => {

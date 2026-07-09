@@ -591,7 +591,7 @@ export interface EntitiesActions {
     addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
     updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
     deleteCalendarEvent: (id: string) => Promise<void>;
-    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<void>;
+    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<Assignment[]>;
     deleteAssignment: (id: string) => Promise<void>;
     getRoleCost: (roleId: string, date: Date, resourceId?: string) => number;
     getSellRate: (rateCardId: string | null | undefined, resourceId: string) => number;

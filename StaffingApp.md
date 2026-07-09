@@ -112,7 +112,9 @@ Pagina per la pianificazione dettagliata delle allocazioni.
 *   **Vista Principale:** Una griglia a due dimensioni con risorse/progetti sulle righe e il tempo sulle colonne. La prima colonna e l'intestazione sono fisse (`sticky`) per facilitare lo scrolling. La tabella utilizza la virtualizzazione per gestire un grande numero di righe in modo performante.
 *   **Visibilità Progetti:**
     *   I progetti con stato **"Completato"** non compaiono mai nella griglia (né come righe di assegnazione né nel calcolo dei carichi totali, né tra le opzioni dei filtri).
-    *   Le assegnazioni con allocazione **0%** (mai popolate, o azzerate nel periodo visibile) sono **nascoste di default**. Un pulsante "Mostra/Nascondi progetti a 0%" nella toolbar permette di attivarne la visualizzazione su richiesta.
+    *   Le assegnazioni **mai popolate** (0% ovunque) sono **nascoste di default**. Un pulsante "Mostra/Nascondi progetti a 0%" nella toolbar permette di attivarne la visualizzazione su richiesta. Un'assegnazione con allocazioni > 0 (anche solo fuori dal periodo visibile) è **sempre** mostrata: lo staffing reale non sparisce mai dalla griglia.
+    *   Le assegnazioni che rientrano in un **filtro esplicito attivo** (Risorsa, Progetto, Cliente o PM) sono sempre mostrate, anche a 0%: chi filtra deve vedere tutto lo staffing del perimetro filtrato.
+    *   Le assegnazioni **appena create** nella sessione corrente sono sempre mostrate, anche a 0%, così da poterle popolare subito.
 *   **Controlli:**
     *   **Navigazione Temporale:** Pulsanti `← Prec.`, `Oggi`, `Succ. →`.
     *   **Selettore Vista:** `Giorno`, `Settimana`, `Mese`.
