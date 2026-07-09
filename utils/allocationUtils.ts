@@ -16,32 +16,24 @@ export const isProjectVisibleInStaffing = (project: Pick<Project, 'status'> | un
     project?.status !== COMPLETED_PROJECT_STATUS;
 
 /**
- * Determina se una riga di assegnazione va mostrata nella griglia di Staffing per il
- * periodo visibile [rangeStartStr, rangeEndStr] (date ISO, estremi inclusi).
+ * Determina se una riga di assegnazione va mostrata nella griglia di Staffing.
  *
- * - Se l'assegnazione ha un'allocazione > 0 nel periodo visibile → sempre mostrata.
- * - Se ha valori > 0 solo fuori dal periodo visibile → nascosta.
+ * - Se l'assegnazione ha un'allocazione > 0 in un punto qualsiasi del tempo → sempre
+ *   mostrata: è staffing reale e nasconderla farebbe sembrare persi i dati (anche se
+ *   le giornate allocate cadono fuori dal periodo attualmente visibile).
  * - Se non ha mai ricevuto alcuna percentuale (0% ovunque) → mostrata solo se
  *   `showZeroAllocation` è true (di default nascoste, attivabile dall'utente).
  */
 export const shouldShowAssignmentInStaffing = (
     assignmentAllocations: Record<string, number> | undefined,
-    rangeStartStr: string,
-    rangeEndStr: string,
     showZeroAllocation: boolean
 ): boolean => {
-    if (!assignmentAllocations) return showZeroAllocation;
-
-    let hasAnyNonZero = false;
-    for (const dateStr in assignmentAllocations) {
-        if (assignmentAllocations[dateStr] > 0) {
-            hasAnyNonZero = true;
-            if (dateStr >= rangeStartStr && dateStr <= rangeEndStr) {
-                return true;
-            }
+    if (assignmentAllocations) {
+        for (const dateStr in assignmentAllocations) {
+            if (assignmentAllocations[dateStr] > 0) return true;
         }
     }
-    return hasAnyNonZero ? false : showZeroAllocation;
+    return showZeroAllocation;
 };
 
 /**

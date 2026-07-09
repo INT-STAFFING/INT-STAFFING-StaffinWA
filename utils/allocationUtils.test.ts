@@ -71,32 +71,28 @@ describe('isProjectVisibleInStaffing', () => {
 });
 
 describe('shouldShowAssignmentInStaffing', () => {
-    const rangeStart = '2024-06-03';
-    const rangeEnd = '2024-06-09';
-
     it('nasconde di default un\'assegnazione senza alcuna allocazione registrata (0%)', () => {
-        expect(shouldShowAssignmentInStaffing(undefined, rangeStart, rangeEnd, false)).toBe(false);
+        expect(shouldShowAssignmentInStaffing(undefined, false)).toBe(false);
     });
 
     it('mostra un\'assegnazione a 0% quando il toggle utente è attivo', () => {
-        expect(shouldShowAssignmentInStaffing(undefined, rangeStart, rangeEnd, true)).toBe(true);
+        expect(shouldShowAssignmentInStaffing(undefined, true)).toBe(true);
     });
 
-    it('mostra sempre un\'assegnazione con allocazione > 0 nel periodo visibile, a prescindere dal toggle', () => {
+    it('mostra sempre un\'assegnazione con allocazione > 0, a prescindere dal toggle', () => {
         const allocs = { '2024-06-04': 50 };
-        expect(shouldShowAssignmentInStaffing(allocs, rangeStart, rangeEnd, false)).toBe(true);
-        expect(shouldShowAssignmentInStaffing(allocs, rangeStart, rangeEnd, true)).toBe(true);
+        expect(shouldShowAssignmentInStaffing(allocs, false)).toBe(true);
+        expect(shouldShowAssignmentInStaffing(allocs, true)).toBe(true);
     });
 
-    it('nasconde un\'assegnazione con allocazione > 0 solo fuori dal periodo visibile', () => {
-        const allocs = { '2024-07-01': 50 };
-        expect(shouldShowAssignmentInStaffing(allocs, rangeStart, rangeEnd, false)).toBe(false);
-        expect(shouldShowAssignmentInStaffing(allocs, rangeStart, rangeEnd, true)).toBe(false);
+    it('mostra un\'assegnazione con allocazioni > 0 anche lontane nel tempo (lo staffing reale non deve mai sparire dalla griglia)', () => {
+        const allocs = { '2030-01-07': 50 };
+        expect(shouldShowAssignmentInStaffing(allocs, false)).toBe(true);
     });
 
     it('tratta un oggetto allocazioni presente ma tutto a 0 come assegnazione a 0%, soggetta al toggle', () => {
         const allocs = { '2024-06-04': 0 };
-        expect(shouldShowAssignmentInStaffing(allocs, rangeStart, rangeEnd, false)).toBe(false);
-        expect(shouldShowAssignmentInStaffing(allocs, rangeStart, rangeEnd, true)).toBe(true);
+        expect(shouldShowAssignmentInStaffing(allocs, false)).toBe(false);
+        expect(shouldShowAssignmentInStaffing(allocs, true)).toBe(true);
     });
 });

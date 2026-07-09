@@ -55,7 +55,7 @@ export interface ProjectsContextValue {
     deleteContract: (id: string) => Promise<void>;
     recalculateContractBacklog: (id: string) => Promise<void>;
     // Assegnazioni
-    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<void>;
+    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<Assignment[]>;
     deleteAssignment: (id: string) => Promise<void>;
     // Billing Milestone CRUD
     addBillingMilestone: (milestone: Omit<BillingMilestone, 'id'>) => Promise<void>;
@@ -343,19 +343,32 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [contracts, contractProjects, contractManagers, projects, updateContract, actionLoading]);
 
     // --- Assegnazioni ---
+    // Restituisce le assegnazioni toccate: sia quelle create sia quelle già esistenti
+    // (risposta 'Exists'), così il chiamante può ad es. forzarne la visibilità in griglia.
     const addMultipleAssignments = useCallback(async (
         newAssignments: { resourceId: string; projectId: string }[]
-    ): Promise<void> => {
+    ): Promise<Assignment[]> => {
         try {
-            const created = await Promise.all(
-                newAssignments.map(a => apiFetch<Assignment | { message: string }>('/api/staffing?action=assignment', {
-                    method: 'POST',
-                    body: JSON.stringify(a)
-                }))
+            const responses = await Promise.all(
+                newAssignments.map(a =>
+                    apiFetch<Assignment | { message: string; assignment?: { id: string } }>('/api/staffing?action=assignment', {
+                        method: 'POST',
+                        body: JSON.stringify(a)
+                    }).then(res => ({ request: a, res }))
+                )
             );
-            setAssignments(prev => [...prev, ...created.filter((a): a is Assignment => !('message' in a))]);
+            const created = responses
+                .map(r => r.res)
+                .filter((res): res is Assignment => !('message' in res));
+            setAssignments(prev => [...prev, ...created]);
+            const existing = responses
+                .filter((r): r is { request: { resourceId: string; projectId: string }; res: { message: string; assignment: { id: string } } } =>
+                    'message' in r.res && !!r.res.assignment?.id)
+                .map(r => ({ id: r.res.assignment.id, resourceId: r.request.resourceId, projectId: r.request.projectId }));
+            return [...created, ...existing];
         } catch (e) {
             addToast('Errore durante la creazione delle assegnazioni.', 'error');
+            return [];
         }
     }, [addToast]);
 
