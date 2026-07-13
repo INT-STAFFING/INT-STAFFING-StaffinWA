@@ -11,6 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday, formatDateFull } from '../utils/dateUtils';
+import { isProjectVisibleInStaffing } from '../utils/allocationUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
@@ -39,7 +40,7 @@ const ResourcesPage: React.FC = () => {
     } = useResourcesContext();
     const { deleteResource } = useCascadeOps();
     const { functions, industries, locations, companyCalendar } = useLookupContext();
-    const { assignments } = useProjectsContext();
+    const { assignments, projects } = useProjectsContext();
     const { skills, resourceSkills, addResourceSkill, deleteResourceSkill } = useSkillsContext();
     const { isActionLoading, loading } = useAppState();
     const { allocations } = useAllocationsContext();
@@ -134,11 +135,19 @@ const ResourcesPage: React.FC = () => {
         seniorityCode: ''
     };
 
+    // Allineamento con Staffing/Workload: le assegnazioni su progetti "Completato"
+    // non contano come staffing attivo (carico mese, bench, progetti attivi).
+    const projectsById = useMemo(() => new Map(projects.map(p => [p.id!, p])), [projects]);
+    const visibleAssignments = useMemo(
+        () => assignments.filter(a => isProjectVisibleInStaffing(projectsById.get(a.projectId))),
+        [assignments, projectsById]
+    );
+
     const kpis = useMemo(() => {
         const activeResources = resources.filter(r => !r.resigned);
         const totalActive = activeResources.length;
         const resignedCount = resources.length - totalActive;
-        const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
+        const assignedResourceIds = new Set(visibleAssignments.map(a => a.resourceId));
         const benchCount = activeResources.filter(r => !assignedResourceIds.has(r.id!)).length;
 
         const totalCost = activeResources.reduce((sum, r) => {
@@ -149,7 +158,7 @@ const ResourcesPage: React.FC = () => {
         const avgCost = totalActive > 0 ? totalCost / totalActive : 0;
 
         return { totalActive, resignedCount, benchCount, avgCost };
-    }, [resources, assignments, roles]);
+    }, [resources, visibleAssignments, roles]);
     
     const calculateResourceAllocation = useCallback((resource: Resource): number => {
         const now = new Date();
@@ -160,7 +169,7 @@ const ResourcesPage: React.FC = () => {
         if(firstDay.getTime() > effectiveLastDay.getTime()) return 0;
         const workingDaysInMonth = getWorkingDaysBetween(firstDay, effectiveLastDay, companyCalendar, resource.location);
         if (workingDaysInMonth === 0) return 0;
-        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+        const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
         if (resourceAssignments.length === 0) return 0;
 
         let totalPersonDays = 0;
@@ -178,10 +187,10 @@ const ResourcesPage: React.FC = () => {
             }
         });
         return Math.round((totalPersonDays / workingDaysInMonth) * 100);
-    }, [assignments, allocations, companyCalendar]);
+    }, [visibleAssignments, allocations, companyCalendar]);
     
     const dataForTable = useMemo<EnrichedResource[]>(() => {
-        const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
+        const assignedResourceIds = new Set(visibleAssignments.map(a => a.resourceId));
 
         const filtered = resources.filter(resource => {
             if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) return false;
@@ -197,7 +206,7 @@ const ResourcesPage: React.FC = () => {
 
         return filtered.map(resource => {
             const role = roles.find(r => r.id === resource.roleId);
-            const activeProjects = assignments.filter(a => a.resourceId === resource.id).length;
+            const activeProjects = visibleAssignments.filter(a => a.resourceId === resource.id).length;
             const hireDate = new Date(resource.hireDate);
             const seniority = !isNaN(hireDate.getTime()) ? (new Date().getTime() - hireDate.getTime()) / (1000 * 3600 * 24 * 365.25) : 0;
             const tutor = resources.find(r => r.id === resource.tutorId);
@@ -214,7 +223,7 @@ const ResourcesPage: React.FC = () => {
                 tutorName: tutor?.name || '-'
             };
         });
-    }, [resources, debouncedFilters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
+    }, [resources, debouncedFilters, roles, calculateResourceAllocation, visibleAssignments, showOnlyUnassigned]);
 
     const exportData = useMemo(() => {
         return dataForTable.map(r => ({

@@ -84,8 +84,9 @@ Questa è la pagina principale che fornisce una visione d'insieme dello stato de
         *   **Formula:** `SUM( (alloc_percentage / 100) * resource_daily_cost )` per ogni giorno lavorativo del mese corrente, per ogni allocazione. Il `resource_daily_cost` è derivato dal ruolo della risorsa.
     *   **Giorni Allocati (Mese Corrente):** Totale dei giorni/uomo (person-days) allocati su tutti i progetti nel mese corrente.
         *   **Formula:** `SUM(alloc_percentage / 100)` per ogni giorno lavorativo del mese corrente, per ogni allocazione.
+*   **Coerenza con Staffing:** le viste di **carico/bench delle risorse** (Risorse Non Allocate, Allocazione Media, Risorse Sottoutilizzate, Analisi per Sede, Bench per Function/Industry, Trend Saturazione) escludono le assegnazioni su progetti **"Completato"** (`isProjectVisibleInStaffing`), come Staffing e Carico Risorse. Le analisi **economiche e di effort storico** (costi, budget, rate medio, effort per Function/Industry, matrice FTE, revenue) le includono, perché il lavoro passato su progetti completati è un dato consuntivo reale.
 *   **Card di Attenzione Interattive:** Evidenziano aree critiche. Cliccando su una card si viene reindirizzati alla pagina corrispondente con i filtri pre-applicati. Sfondo ambrato (`bg-amber-100`).
-    *   **Risorse Non Allocate:** Conta le risorse attive (`resigned = false`) che non hanno alcuna assegnazione. Mostra i nomi delle prime risorse non allocate.
+    *   **Risorse Non Allocate:** Conta le risorse attive (`resigned = false`) che non hanno alcuna assegnazione su progetti non completati. Mostra i nomi delle prime risorse non allocate.
     *   **Progetti Senza Staff:** Conta i progetti con stato "In corso" che non hanno alcuna risorsa assegnata. Mostra i nomi dei primi progetti.
 *   **Tabelle di Analisi Dettagliata:** Ogni tabella ha filtri specifici e colonne ordinabili.
     *   **Allocazione Media:**
@@ -161,6 +162,7 @@ Analisi previsionale del carico di lavoro e della capacità del team.
     *   **G/U Allocati:** `SUM(alloc_percentage / 100)` per ogni giorno lavorativo del mese, per tutte le risorse nel team.
     *   **Utilizzo:** `(G/U Allocati / G/U Disponibili) * 100`.
     *   **Surplus/Deficit:** `G/U Disponibili - G/U Allocati`. Un valore negativo (in rosso) indica un deficit di capacità.
+*   **Coerenza con Staffing:** i progetti **"Completato"** non partecipano al forecast: né con le allocazioni residue, né con le proiezioni predittive, né tra le opzioni del filtro Progetto.
 *   **Filtri:** Per `Horizontal`, `Cliente`, `Progetto`.
 
 ### 5.2 Gantt Progetti
@@ -186,7 +188,7 @@ Generazione di report tabellari esportabili in **CSV**.
     *   **Dati:** Per ogni progetto, confronta Budget, Costo Allocato Stimato, Varianza, Giorni/Uomo totali, e Costo Medio per G/U.
     *   **Filtri:** Per `Cliente` e `Stato Progetto`.
 *   **Report Utilizzo Risorse:**
-    *   **Dati:** Per un mese selezionato, mostra per ogni risorsa i G/U disponibili, G/U allocati, Utilizzo % e Costo Allocato.
+    *   **Dati:** Per un mese selezionato, mostra per ogni risorsa i G/U disponibili, G/U allocati, Utilizzo % e Costo Allocato. Esclude le assegnazioni su progetti **"Completato"** (coerenza con Staffing/Carico Risorse); il Report Costi Progetto invece li include (consuntivo per progetto).
     *   **Filtri:** Per `Mese`, `Ruolo`, `Horizontal`.
 
 ### 5.4 Visualizzazione Staffing
@@ -215,7 +217,7 @@ Pagine dedicate al Create, Read, Update, Delete (CRUD) delle entità principali.
 
 ### Specifiche delle Entità
 
-*   **Risorse:** Oltre ai dati anagrafici, qui definisci la `maxStaffingPercentage` (la percentuale massima di allocazione, es. 80% per un part-time) e gestisci le dimissioni (flaggando `resigned` e inserendo l'ultimo giorno di lavoro).
+*   **Risorse:** Oltre ai dati anagrafici, qui definisci la `maxStaffingPercentage` (la percentuale massima di allocazione, es. 80% per un part-time) e gestisci le dimissioni (flaggando `resigned` e inserendo l'ultimo giorno di lavoro). La colonna **% Allocazione** (mese corrente), il KPI **bench**, il filtro "solo non assegnate" e il conteggio **progetti attivi** escludono le assegnazioni su progetti "Completato", con la stessa regola di Staffing/Carico Risorse.
 *   **Progetti:** Definisci la `realizationPercentage`, una percentuale che rettifica il calcolo dei costi stimati. Qui puoi anche collegare un progetto a un **Contratto**.
 *   **Contratti:** Un'entità che raggruppa più progetti sotto un unico cappello finanziario. La `Capienza` è l'importo totale del contratto, mentre il `Backlog` è la capienza residua, calcolata sottraendo i budget dei progetti collegati. Puoi forzare il ricalcolo del backlog con l'icona `🔄`.
 

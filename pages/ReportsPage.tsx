@@ -10,6 +10,7 @@ import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { isProjectVisibleInStaffing } from '../utils/allocationUtils';
 import { formatCurrency } from '../utils/formatters';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
@@ -292,13 +293,22 @@ const ProjectCostsReport: React.FC = () => {
 const ResourceUtilizationReport: React.FC = () => {
     // Corrected destructuring using functions instead of horizontals
     const { resources, roles, getRoleCost } = useResourcesContext();
-    const { assignments } = useProjectsContext();
+    const { assignments, projects } = useProjectsContext();
     const { functions, companyCalendar } = useLookupContext();
     const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     // Updated filters state horizontal -> function
     const [filters, setFilters] = useState({ roleId: [] as string[], function: [] as string[] });
+
+    // Allineamento con Staffing/Workload: l'utilizzo delle risorse esclude le
+    // assegnazioni su progetti "Completato" (il report costi progetto, invece,
+    // li include perché analizza il consuntivo per progetto).
+    const projectsById = useMemo(() => new Map(projects.map(p => [p.id!, p])), [projects]);
+    const visibleAssignments = useMemo(
+        () => assignments.filter(a => isProjectVisibleInStaffing(projectsById.get(a.projectId))),
+        [assignments, projectsById]
+    );
 
     const reportData = useMemo(() => {
         const [year, monthNum] = month.split('-').map(Number);
@@ -323,8 +333,8 @@ const ResourceUtilizationReport: React.FC = () => {
                 
                 let allocatedDays = 0;
                 let allocatedCost = 0;
-                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
-                
+                const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
+
                 resourceAssignments.forEach(assignment => {
                     if (!assignment.id) return;
                     const assignmentAllocations = allocations[assignment.id];
@@ -363,7 +373,7 @@ const ResourceUtilizationReport: React.FC = () => {
                 utilization: number;
                 allocatedCost: number;
             }[];
-    }, [resources, roles, assignments, companyCalendar, month, filters, allocations, getRoleCost]);
+    }, [resources, roles, visibleAssignments, companyCalendar, month, filters, allocations, getRoleCost]);
     
     const exportData = useMemo(() => {
         return reportData.map(d => ({
