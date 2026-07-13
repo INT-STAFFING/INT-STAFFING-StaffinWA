@@ -10,8 +10,9 @@ import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useHRContext } from '../context/HRContext';
 import { useAuth } from '../context/AuthContext';
-import { Resource, Assignment, LeaveRequest, LeaveType, Role } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic } from '../utils/dateUtils';
+import { Resource, Assignment, LeaveRequest, LeaveType, Role, Project } from '../types';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic, parseISODate, toISODateString } from '../utils/dateUtils';
+import { isProjectVisibleInStaffing } from '../utils/allocationUtils';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
@@ -160,7 +161,7 @@ const WorkloadPage: React.FC = () => {
     // Destructured loading from useEntitiesContext to fix line 510 error
     const { resources, roles } = useResourcesContext();
     const { companyCalendar: companyCalendar2 } = useLookupContext();
-    const { assignments } = useProjectsContext();
+    const { assignments, projects } = useProjectsContext();
     const { leaveRequests, leaveTypes } = useHRContext();
     const { loading } = useAppState();
     // Alias to avoid duplicate variable name
@@ -174,6 +175,14 @@ const WorkloadPage: React.FC = () => {
     const [itemsPerPage, setItemsPerPage] = useState(20);
 
     const rolesById = useMemo(() => new Map<string, Role>(roles.map((r) => [r.id!, r])), [roles]);
+    const projectsById = useMemo(() => new Map<string, Project>(projects.map((p) => [p.id!, p])), [projects]);
+
+    // Allineamento con la pagina Staffing: le assegnazioni su progetti "Completato"
+    // non contribuiscono al carico visualizzato (stesse percentuali su entrambe le pagine).
+    const visibleAssignments = useMemo(
+        () => assignments.filter(a => isProjectVisibleInStaffing(projectsById.get(a.projectId))),
+        [assignments, projectsById]
+    );
 
     const handlePrev = useCallback(() => {
         setCurrentDate(prev => {
@@ -200,6 +209,9 @@ const WorkloadPage: React.FC = () => {
     const timeColumns = useMemo(() => {
         const cols = [];
         const d = new Date(currentDate);
+        // Normalizza a mezzanotte UTC: i limiti delle colonne (start/end) devono essere
+        // date pure, senza l'ora corrente, per confronti coerenti con le allocazioni.
+        d.setUTCHours(0, 0, 0, 0);
 
         if (viewMode === 'day') {
             return getCalendarDays(d, 14).map((day) => {
@@ -265,15 +277,21 @@ const WorkloadPage: React.FC = () => {
         const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
         if (workingDays === 0) return { avg: 0, allocated: 0, available: 0 };
 
-        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+        const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
         let totalPersonDays = 0;
+
+        // Confronto su stringhe ISO (YYYY-MM-DD): i limiti del periodo possono portare
+        // un orario (es. "oggi" con ora corrente) che escluderebbe le allocazioni del
+        // primo giorno, salvate a mezzanotte UTC.
+        const startStr = toISODateString(startDate);
+        const endStr = toISODateString(effectiveEndDate);
 
         resourceAssignments.forEach(assignment => {
             const assignmentAllocations = allocations[assignment.id!];
             if (assignmentAllocations) {
                 for (const dateStr in assignmentAllocations) {
-                    const allocDate = new Date(dateStr);
-                    if (allocDate >= startDate && allocDate <= effectiveEndDate) {
+                    if (dateStr >= startStr && dateStr <= endStr) {
+                        const allocDate = parseISODate(dateStr);
                         const day = allocDate.getUTCDay();
                         if (!isHoliday(allocDate, resource.location, companyCalendar) && day !== 0 && day !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
@@ -283,13 +301,13 @@ const WorkloadPage: React.FC = () => {
             }
         });
 
-        const availableDays = workingDays * (resource.maxStaffingPercentage / 100);
-        return { 
+        const availableDays = workingDays * ((resource.maxStaffingPercentage ?? 100) / 100);
+        return {
             avg: (totalPersonDays / workingDays) * 100,
             allocated: totalPersonDays,
             available: availableDays
         };
-    }, [assignments, allocations, companyCalendar]);
+    }, [visibleAssignments, allocations, companyCalendar]);
 
     const displayData = useMemo(() => {
         let visibleResources = resources.filter((r) => r.resigned !== true);
@@ -305,7 +323,7 @@ const WorkloadPage: React.FC = () => {
             visibleResources = visibleResources.filter(r => {
                 const { avg } = calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate);
                 const roundedAvg = Math.round(avg);
-                const max = r.maxStaffingPercentage;
+                const max = r.maxStaffingPercentage ?? 100;
                 
                 if (statusFilter === 'UNDER') return roundedAvg < max;
                 if (statusFilter === 'OVER') return roundedAvg > max;
@@ -338,8 +356,8 @@ const WorkloadPage: React.FC = () => {
     const assignmentsMap = useMemo(() => {
         const map = new Map<string, Assignment[]>();
         const visibleIds = new Set(paginatedData.map(r => r.id));
-        
-        assignments.forEach(a => {
+
+        visibleAssignments.forEach(a => {
             if (visibleIds.has(a.resourceId)) {
                 if (!map.has(a.resourceId)) {
                     map.set(a.resourceId, []);
@@ -348,7 +366,7 @@ const WorkloadPage: React.FC = () => {
             }
         });
         return map;
-    }, [paginatedData, assignments]);
+    }, [paginatedData, visibleAssignments]);
 
     const leavesLookup = useMemo(() => {
         const map = new Map<string, { request: LeaveRequest; type: LeaveType }>();
@@ -399,7 +417,7 @@ const WorkloadPage: React.FC = () => {
         const firstCol = timeColumns[0];
         const lastCol = timeColumns[timeColumns.length - 1];
         const { avg, allocated, available } = calculateAvgLoadForPeriod(resource, firstCol.startDate, lastCol.endDate);
-        const max = resource.maxStaffingPercentage;
+        const max = resource.maxStaffingPercentage ?? 100;
 
         let textColor = 'text-primary';
         let barColor = 'bg-primary';
