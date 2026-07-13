@@ -11,6 +11,7 @@ import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useUIConfigContext } from '../context/UIConfigContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { isProjectVisibleInStaffing } from '../utils/allocationUtils';
 import { useNavigate } from 'react-router-dom';
 import {
   DASHBOARD_CARDS_CONFIG,
@@ -99,13 +100,23 @@ const DashboardPage: React.FC = () => {
 
     const activeResources = useMemo(() => resources.filter(r => !r.resigned), [resources]);
 
+    // Allineamento con Staffing/Workload: le assegnazioni su progetti "Completato"
+    // non contano nelle viste di carico/bench delle risorse. Restano invece incluse
+    // nelle analisi economiche e di effort storico (costi, budget, revenue), dove
+    // il lavoro passato su progetti completati è un dato reale.
+    const projectsByIdForLoad = useMemo(() => new Map(projects.map(p => [p.id!, p])), [projects]);
+    const visibleAssignments = useMemo(
+        () => assignments.filter(a => isProjectVisibleInStaffing(projectsByIdForLoad.get(a.projectId))),
+        [assignments, projectsByIdForLoad]
+    );
+
     const overallKPIs = useMemo(() => {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
         // --- Resources ---
         const totalActiveResources = activeResources.length;
-        const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
+        const assignedResourceIds = new Set(visibleAssignments.map(a => a.resourceId));
         const unassignedResources = activeResources.filter(r => r.id && !assignedResourceIds.has(r.id) && r.maxStaffingPercentage > 0);
 
         // --- Projects ---
@@ -134,7 +145,7 @@ const DashboardPage: React.FC = () => {
             unstaffedProjects,
             totalActiveProjects,
         };
-    }, [projects, assignments, activeResources]);
+    }, [projects, assignments, visibleAssignments, activeResources]);
 
     const currentMonthKPIs = useMemo(() => {
         const now = new Date();
@@ -202,7 +213,7 @@ const DashboardPage: React.FC = () => {
                 const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
                 if (workingDays === 0) return 0;
                 
-                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
                 let totalPersonDays = 0;
                 resourceAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id!];
@@ -225,7 +236,7 @@ const DashboardPage: React.FC = () => {
                 nextMonth: calculateAvgForMonth(1),
             };
         });
-    }, [activeResources, assignments, allocations, companyCalendar, avgAllocFilter]);
+    }, [activeResources, visibleAssignments, allocations, companyCalendar, avgAllocFilter]);
 
     const fteData = useMemo(() => {
         const filteredProjects = fteFilter.clientId.length > 0
@@ -405,7 +416,7 @@ const DashboardPage: React.FC = () => {
             const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
             if (workingDays === 0) return { id: resource.id, resource, avgAllocation: 0 };
             
-            const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+            const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
             let totalPersonDays = 0;
             resourceAssignments.forEach(assignment => {
                 const assignmentAllocations = allocations[assignment.id!];
@@ -420,7 +431,7 @@ const DashboardPage: React.FC = () => {
             });
             return { id: resource.id, resource, avgAllocation: (totalPersonDays / workingDays) * 100 };
         }).filter(d => d.avgAllocation < 100);
-    }, [activeResources, assignments, allocations, companyCalendar, underutilizedFilter]);
+    }, [activeResources, visibleAssignments, allocations, companyCalendar, underutilizedFilter]);
 
     const effortByFunctionData = useMemo(() => {
         const data: {[key: string]: number} = {};
@@ -481,7 +492,7 @@ const DashboardPage: React.FC = () => {
                 const staffingFactor = (resource.maxStaffingPercentage || 100) / 100;
                 availableDays += workingDays * staffingFactor;
 
-                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
                 resourceAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id!];
                     if (assignmentAllocations) {
@@ -503,7 +514,7 @@ const DashboardPage: React.FC = () => {
                 avgUtilization: availableDays > 0 ? (allocatedDays / availableDays) * 100 : 0,
             };
         });
-    }, [locations, activeResources, assignments, allocations, companyCalendar]);
+    }, [locations, activeResources, visibleAssignments, allocations, companyCalendar]);
     
     const saturationTrendData = useMemo(() => {
         if (!trendResource) return [];
@@ -521,7 +532,7 @@ const DashboardPage: React.FC = () => {
             let totalPersonDays = 0;
             
             if (workingDays > 0) {
-                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
                 resourceAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id!];
                     if (assignmentAllocations) {
@@ -537,7 +548,7 @@ const DashboardPage: React.FC = () => {
             data.push({ month: date, value: workingDays > 0 ? (totalPersonDays / workingDays) * 100 : 0 });
         }
         return data;
-    }, [trendResource, resources, assignments, allocations, companyCalendar]);
+    }, [trendResource, resources, visibleAssignments, allocations, companyCalendar]);
     
      const monthlyCostForecastData = useMemo(() => {
         const calculateCostForMonth = (monthOffset: number): number => {
@@ -692,7 +703,7 @@ const DashboardPage: React.FC = () => {
                  indStats[resource.industry].capacity += capacity;
              }
 
-             const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+             const resourceAssignments = visibleAssignments.filter(a => a.resourceId === resource.id);
              let allocated = 0;
              resourceAssignments.forEach(a => {
                   const assignmentAllocations = allocations[a.id!];
@@ -728,7 +739,7 @@ const DashboardPage: React.FC = () => {
 
         return { byFunction, byIndustry };
 
-    }, [activeResources, assignments, allocations, companyCalendar, functions, industries]);
+    }, [activeResources, visibleAssignments, allocations, companyCalendar, functions, industries]);
 
 
     // --- New WBS Calculations ---

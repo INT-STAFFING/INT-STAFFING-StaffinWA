@@ -11,6 +11,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { useHRContext } from '../context/HRContext';
 import { LeaveRequest, Project, Assignment } from '../types';
 import { getWorkingDaysBetween, getLeaveDurationInWorkingDays, parseISODate, isHoliday, buildHolidaySet, isHolidayInSet, getWorkingDaysBetweenWithSet } from '../utils/dateUtils';
+import { isProjectVisibleInStaffing } from '../utils/allocationUtils';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
 /**
@@ -38,10 +39,12 @@ const ForecastingPage: React.FC = () => {
     }, []);
     
     const availableProjects = useMemo(() => {
+        // I progetti "Completato" non partecipano al forecast: inutile poterli filtrare.
+        const plannableProjects = projects.filter(isProjectVisibleInStaffing);
         if (filters.clientId.length === 0) {
-            return projects;
+            return plannableProjects;
         }
-        return projects.filter(p => filters.clientId.includes(p.clientId || ''));
+        return plannableProjects.filter(p => filters.clientId.includes(p.clientId || ''));
     }, [projects, filters.clientId]);
 
     const handleFilterChange = (name: string, values: string[]) => {
@@ -118,7 +121,15 @@ const ForecastingPage: React.FC = () => {
             filteredResources = filteredResources.filter(r => filters.function.includes(r.function));
         }
 
-        let assignmentsToConsider = [...assignments];
+        // Mappa rapida progetti per accesso veloce alle date
+        const projectMap = new Map<string, Project>();
+        projects.forEach(p => {
+            if (p.id) projectMap.set(p.id, p);
+        });
+
+        // Allineamento con Staffing/Workload: i progetti "Completato" non partecipano
+        // al forecast, né con le allocazioni residue né con le proiezioni predittive.
+        let assignmentsToConsider = assignments.filter(a => isProjectVisibleInStaffing(projectMap.get(a.projectId)));
 
         if (filters.projectId.length > 0) {
             assignmentsToConsider = assignmentsToConsider.filter(a => filters.projectId.includes(a.projectId || ''));
@@ -133,12 +144,6 @@ const ForecastingPage: React.FC = () => {
             filteredResources = filteredResources.filter(r => resourceIdsForClient.has(r.id!));
         }
         
-        // Mappa rapida progetti per accesso veloce alle date
-        const projectMap = new Map<string, Project>();
-        projects.forEach(p => {
-            if (p.id) projectMap.set(p.id, p);
-        });
-
         // Create efficient lookup for assignments by resource
         const assignmentsByResource = new Map<string, Assignment[]>();
         assignmentsToConsider.forEach(a => {
