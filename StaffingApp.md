@@ -144,6 +144,7 @@ Vista semplificata e di **sola lettura** dello staffing, focalizzata sul carico 
 
 *   **Scopo:** Monitorare il carico di lavoro individuale senza il rischio di modifiche.
 *   **Vista Principale:** Simile alla pagina Staffing, ma mostra solo le "Master Row" delle risorse con il loro carico totale. Non ci sono righe per i singoli progetti né controlli per la modifica.
+*   **Coerenza con Staffing:** i carichi (celle giornaliere, medie aggregate, filtri di stato, card mobile, export) escludono le assegnazioni su progetti **"Completato"**, con la stessa regola della griglia di Staffing (`isProjectVisibleInStaffing`): le percentuali mostrate dalle due pagine coincidono.
 *   **Filtri:** Disponibili filtri per `Risorsa`, `Ruolo` (multi-selezione), `Progetto` e `Cliente` per isolare gruppi di risorse.
 
 ## 5. Pagine di Analisi
